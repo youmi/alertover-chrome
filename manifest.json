@@ -1,0 +1,27 @@
+{
+    "manifest_version": 2,
+    "name": "Alertover",
+    "description": "Alertover extension in chrome",
+    "version": "0.2.0",
+
+    "background" : {
+        "scripts" : ["/node_modules/jquery/dist/jquery.min.js","/src/js/background.js"]
+    },
+
+    "icons": {
+        "16": "/imgs/logo48.png",
+        "48": "/imgs/logo48.png",
+        "128": "/imgs/logo48.png"
+    },
+
+    "browser_action": {
+        "default_icon": "/imgs/logo.png",
+        "default_popup": "/html/popup.html"
+    },
+
+    "permissions": [
+        "activeTab",
+        "https://ajax.googleapis.com/",
+        "http://test.api.alertover.com/"
+    ]
+}

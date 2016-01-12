@@ -1,0 +1,23 @@
+{
+  "name": "alertover_chrome",
+  "version": "0.2.0",
+  "description": "Alertover extension in chrome",
+  "main": "manifest.json",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "alertover",
+    "chrome"
+  ],
+  "author": "liangjiahao@youmi.net",
+  "license": "BSD-2-Clause",
+  "dependencies": {
+    "jquery": "~2.1.4",
+    "bootstrap": "~3.3.6",
+    "socket.io": "~1.4.0"
+  },
+  "devDependencies": {
+    "gulp": "~3.9.0"
+  }
+}
