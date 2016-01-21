@@ -1,29 +1,35 @@
 <!DOCTYPE html>
 <head>
     <title>Alertover</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="/node_modules/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="/src/css/index.css" rel="stylesheet">
 </head>
 <body>
-    <div class="app-wrapper container">
-        <form id="loginForm" class="form form-horizontal" method="post" action="#">
-            <div class="row">
-                <div class="form-group col-xs-12">
-                    <label>登录邮箱</label>
-                    <input id="emailInput" type="text" class="form-control" name="email" placeholder="email">
+    <div class="app-wrapper">
+        <header class="navbar navbar-default">
+            <div class="container">
+                <div class="navbar-header">
+                    <span class="navbar-brand mk-navbar-brand">Alertover</span>
                 </div>
-                <div class="form-group col-xs-12">
+            </div>
+        </header>
+        <form id="loginForm" class="mk-form" method="post" action="#">
+                <div class="form-group">
+                    <label>登录邮箱</label>
+                    <input id="emailInput" type="email" class="form-control" name="email" placeholder="email">
+                </div>
+                <div class="form-group">
                     <label>密码</label>
                     <input id="passwordInput" type="password" class="form-control" name="password" placeholder="Password">
                 </div>
-                <div class="form-group col-xs-12">
-                    <label></label>
-                    <input type="submit" class="btn btn-default" value="登录">
+                <div class="form-group">
+                    <input type="submit" class="btn mk-btn btn-block" value="登录">
                 </div>
-            </div>
         </form>
     </div>
     <script src="/node_modules/jquery/dist/jquery.min.js"></script>
     <script src="/node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
-    <script src="/src/js/login.js"></script>
+    <script src="/dist/js/login.js"></script>
 </body>
