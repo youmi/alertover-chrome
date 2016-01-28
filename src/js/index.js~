@@ -1,9 +1,0 @@
-$(document).ready(function(){
-    session = localStorage.getItem('alertover-session');
-    if(session){
-        
-    }
-    else{
-       window.location = '/html/login.html'; 
-    }
-});
