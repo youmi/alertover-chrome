@@ -4810,13 +4810,19 @@ var Promise = require('promise');
 var Moment = require('moment');
 
 var config = {
+    ver : 20,
     dbName : 'alertover.db',
     dbDisplay : 'alertover',
     dbSize : 5*1024*1024,
+
     getMessagesUrl : 'https://api.alertover.com/api/v1/get_msg',
+    loginUrl : 'https://api.alertover.com/api/v1/login',
+    update : 'https://api.alertover.com/api/v1/update',
+
     pageNum : 10
 };
 
+// 包装数据库相关方法
 var db = (function(){
     html5sql.openDatabase(config['dbName'], config['dbDisplay'], config['dbSize']);
     return {
@@ -4825,12 +4831,8 @@ var db = (function(){
                 html5sql.process(
                     sql,
                     function(tr, re){
-                        console.log(tr);
-                        console.log(re);
                         resolve([tr, re]);
                     }, function(error, statement){
-                        console.log(error.message);
-                        console.log(statement);
                         reject([error, statement]);
                     }
                 );
@@ -4840,20 +4842,20 @@ var db = (function(){
 })();
 
 var base = (function(){
-    var $content = $('#content'),
-        $sourcesUl = $('#sourcesUl'),
-        windowHeight = $(window).height(),
-        flat = false;
-
     return {
         page    :   1,
         sid     :   'all',
+        flat    :   false,
+
+        windowHeight : $(window).height(),
+        $content : $('#content'),
+        $sourcesUl : $('#sourcesUl'),
 
         renderSourcesUl : function(results){
-            $sourcesUl.append('<li class="active"><a class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
+            this.$sourcesUl.append('<li class="active"><a class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
             for(var i=0; i<results.length; i++){
                 template = '<li><a class="sourcesItem" data-sid="'+ results[i]['sid'] +'" href="#"><img src="'+ results[i]['source_icon'] +'"/>'+ results[i]['name'] +'</a></li>';
-                $sourcesUl.append(template);
+                this.$sourcesUl.append(template);
             }
         },
 
@@ -4871,91 +4873,141 @@ var base = (function(){
                 } else {
                     template += '</div></div>';
                 }
-                $content.append(template);
+                this.$content.append(template);
             }
         },
 
-        scrollHandler : function(e){
-            if(!flat){
-                flat = true;
-                var scrollEvent = setTimeout(function(){
-                    var documentHeight = $(document).height();
-                    var scrollTop = $(document).scrollTop();
-                    if(documentHeight-scrollTop-windowHeight < 400){
-                        var offset = base.page*config['pageNum'];
-                        if(base.sid == 'all'){
-                            sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum']+" OFFSET "+offset;
-                        }
-                        else {
-                            sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum']+" OFFSET "+offset;
-                        }
-                        db.query(sql).then(function(da){
-                            if(da[1].rows.length){
-                                base.renderContent(da[1].rows);
-                                base.page += 1;
-                            }
-                            if(da[1].rows.length == config['pageNum']){
-                                flat = false;
-                            }
-                        }, function(err){console.log(err[0]);});
-                    }
-                    else {
-                        flat = false;
-                    }
-                }, 500)
-            }
-        },
-
-        changeSourceHandler : function(e){
-            e.preventDefault();
-
-            // @转换发送源 初始化相关参数
-            base.sid = $(e.target).data('sid');
-            base.page = 1;
-            flat = false;
-
-            if(base.sid == 'all'){
-                sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum'];
-            }
-            else {
-                sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum'];
-            }
-            db.query(sql).then(function(da){
-                $content.empty();
-                if(da[1].rows.length){
-                    base.renderContent(da[1].rows);
-                }
-                if(da[1].rows.length == config['pageNum']){
-                    flat = false;
-                }
-                base.page += 1;
-                $('#sourcesList').collapse('hide');
-                $sourcesUl.find('li').removeClass('active');
-                activeAttr = '[data-sid="'+ base.sid +'"]';
-                $sourcesUl.find(activeAttr).parent('li').addClass('active');
-            });
-        },
-
-        logoutHandler : function(e){
-            e.preventDefault();
-            if(confirm('确定要退出Alertover？')){
-                //用户退出 清空数据库
-                // 检查并初始化客户端数据库
-                db.query([
-                    "DROP TABLE messages;",
-                    "DROP TABLE sources;"
-                ]);
-                localStorage.clear();
-                var bg = chrome.extension.getBackgroundPage();
-                bg.bgScript.disconnect();
-                window.location = '/html/login.html'; 
+        renderPage : function(pageSelector, fn){
+            $('.app-wrapper').addClass('hide');
+            $(pageSelector).removeClass('hide');
+            if(fn){
+                fn();
             }
         }
     }
 })();
 
-$(document).ready(function(){
-    chrome.browserAction.setBadgeText({text : ''}); 
+function scrollHandler(e){
+    if(!base.flat){
+        base.flat = true;
+        var scrollEvent = setTimeout(function(){
+            var documentHeight = $(document).height();
+            var scrollTop = $(document).scrollTop();
+            if(documentHeight-scrollTop-base.windowHeight < 400){
+                var offset = base.page*config['pageNum'];
+                if(base.sid == 'all'){
+                    sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum']+" OFFSET "+offset;
+                }
+                else {
+                    sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum']+" OFFSET "+offset;
+                }
+                db.query(sql).then(function(da){
+                    if(da[1].rows.length){
+                        base.renderContent(da[1].rows);
+                        base.page += 1;
+                    }
+                    if(da[1].rows.length == config['pageNum']){
+                        base.flat = false;
+                    }
+                }, function(err){console.log(err[0]);});
+            }
+            else {
+                base.flat = false;
+            }
+        }, 500)
+    }
+}
+
+function changeSourceHandler(e){
+    e.preventDefault();
+
+    var $content = $('#content');
+    var $sourcesUl = $('#sourcesUl');
+
+    // @转换发送源 初始化相关参数
+    base.sid = $(e.target).data('sid');
+    base.page = 1;
+    base.flat = false;
+
+    if(base.sid == 'all'){
+        sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum'];
+    }
+    else {
+        sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum'];
+    }
+    console.log(base.sid);
+    db.query(sql).then(function(da){
+        $content.empty();
+        if(da[1].rows.length){
+            base.renderContent(da[1].rows);
+        }
+        if(da[1].rows.length == config['pageNum']){
+            base.flat = false;
+        }
+        base.page += 1;
+        $('#sourcesList').collapse('hide');
+        $sourcesUl.find('li').removeClass('active');
+        activeAttr = '[data-sid="'+ base.sid +'"]';
+        $sourcesUl.find(activeAttr).parent('li').addClass('active');
+    });
+}
+
+function logoutHandler(e){
+    e.preventDefault();
+    //用户退出 清空数据库
+    // 检查并初始化客户端数据库
+    localStorage.clear();
+    var bg = chrome.extension.getBackgroundPage();
+    bg.bgScript.disconnect();
+    db.query([
+        "DROP TABLE messages;",
+        "DROP TABLE sources;"
+    ]).then(function(){
+        base.renderPage('#loginPage', function(){
+            // 初始化参数
+            base.page = 1;
+            base.sid = 'all';
+            base.flat = false;
+            base.$content.empty();
+            base.$sourcesUl.empty();
+            $('#popupPage').off();
+            $('#loginPage').on('submit', '#loginForm', loginHandler);
+        });
+    });
+}
+
+function loginHandler(e){
+    e.preventDefault()
+    $.ajax({
+        url : config['loginUrl'],
+        method : 'post',
+        contentType : 'application/json',
+        dataType : 'json',
+        data : JSON.stringify({
+            email : $('#emailInput').val(),
+            password : $('#passwordInput').val()
+        }),
+        success : function(da){
+            if(da.code === 0){
+                localStorage.setItem('aosession', da['data']['session']);
+                localStorage.setItem('uid', da['data']['uid']);
+
+                // 启动bgPage
+                var bg = chrome.extension.getBackgroundPage();
+                bg.bgScript.init();
+                base.renderPage('#popupPage', function(){
+                    $('#loginPage').off();
+                    initPopup();
+                });
+            }
+            else {
+                alert(da['msg']);
+            }
+        }
+    });
+}
+
+function initPopup(){
 
     var session = localStorage.getItem('aosession');
     var lastUpdate = localStorage.getItem('lastUpdate');
@@ -4965,24 +5017,17 @@ $(document).ready(function(){
         localStorage.setItem('lastUpdate', lastUpdate);
     }
 
-    if(!session){
-        // 没有登录 请先登录
-        // @todo 登录完清除数据库数据
-        window.location = '/html/login.html'; 
-        return;
-    }
-
     // 事件绑定
-    $(document).on('scroll', base.scrollHandler);
-    $('#sourcesUl').on('click', '[data-sid]', base.changeSourceHandler);
-    $('#logoutBtn').on('click', base.logoutHandler);
+    $(document).on('scroll', scrollHandler);
+    $('#popupPage').on('click', '[data-sid]', changeSourceHandler);
+    $('#popupPage').on('click', '#logoutBtn', logoutHandler);
 
     // 检查并初始化客户端数据库
     var createTablesSql = [
         "CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, msgid INTEGER UNIQUE, sid INTEGER, title TEXT, content TEXT, url TEXT, rt INTEGER, priority INTEGER);",
         "INSERT OR IGNORE INTO messages VALUES (NULL,0,0,'欢迎使用Alertover','收到这条信息时，你可以通过该设备接收Alertover信息。\n点击下面链接来设置你的账户','https://www.alertover.com',"+ now +",0);",
         "CREATE TABLE IF NOT EXISTS sources (sid INTEGER UNIQUE, name TEXT, source_icon TEXT);",
-        "INSERT OR IGNORE INTO sources VALUES (0, 'Alertover', 'http://172.16.5.61/static/imgs/alertover.png');",
+        "INSERT OR IGNORE INTO sources VALUES (0, 'Alertover', 'https://www.alertover.com/static/imgs/alertover.png');",
     ];
     var pCreateTables = db.query(createTablesSql);
 
@@ -5049,16 +5094,59 @@ $(document).ready(function(){
     });
     pLoadMessages.then(function(da){
         results = da[1]['rows'];
-        $('#content').empty();
+        base.$content.empty();
         base.renderContent(results);
         db.query("SELECT * FROM sources").then(function(da){
-            $('#sourcesUl').empty();
+            base.$sourcesUl.empty();
             base.renderSourcesUl(da[1].rows);
         });
         localStorage.setItem('lastUpdate', da[1]['rows'][0]['rt']);
     }, function(err){
         console.log(err);
     });
+
+    // 检查更新
+    $.ajax({
+        url : config.update,
+        method : 'get',
+        data : {
+            'platform' : 'chrome',
+        },
+        success : function(da){
+            if(da.code == 0 && (da.data['ver'] > config['ver'])){
+                var messageAlert = '<div class="alert alert-danger alert-dismissible message-alert" role="alert"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button><span class="message">'
+                messageAlert += '<a target="_blank" href="'+da.data['url']+'">点击获取最新版本的Alertover插件</a>';
+                messageAlert += '</span></div>';
+                $(messageAlert).insertBefore(base.$content);
+            }
+        }
+    });
+}
+
+$(document).ready(function(){
+    // 清空角标
+    chrome.browserAction.setBadgeText({text : ''}); 
+
+    // @todo support
+    if(!(window.openDatabase && window.Notification)){
+        $('#defaultMessage').html('<a target="_blank" href="http://www.google.cn/chrome/browser/desktop/index.html">请先更新你的chrome浏览器</a>');
+        return;
+    }
+
+    var session = localStorage.getItem('aosession');
+    if(session){
+        base.renderPage('#popupPage', function(){
+            initPopup();
+        });
+    }
+    else {
+        // 没有登录 请先登录
+        // @todo 登录完清除数据库数据
+        base.renderPage('#loginPage', function(){
+            $('#loginPage').on('submit', '#loginForm', loginHandler);
+        });
+    }
+
 });
 
 },{"./html5sql.js":12,"moment":1,"promise":2}]},{},[13]);

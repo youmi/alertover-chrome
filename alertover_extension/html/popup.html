@@ -7,7 +7,35 @@
     <link href="/dist/css/index.css" rel="stylesheet">
 </head>
 <body>
-    <div class="app-wrapper">
+    <div id="door" class="app-wrapper">
+        <p id="defaultMessage" class="default-message">正在加载中</p>
+    </div>
+    <div id="loginPage" class="app-wrapper hide">
+        <header class="navbar navbar-default">
+            <div class="container">
+                <div class="navbar-header">
+                    <span class="navbar-brand mk-navbar-brand">Alertover</span>
+                </div>
+            </div>
+        </header>
+        <form id="loginForm" class="mk-form" method="post" action="#">
+            <div class="form-group">
+                <label>登录邮箱</label>
+                <input id="emailInput" type="email" class="form-control" name="email" placeholder="email">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input id="passwordInput" type="password" class="form-control" name="password" placeholder="Password">
+            </div>
+            <div class="form-group">
+                <input type="submit" class="btn mk-btn btn-block" value="登录">
+            </div>
+            <div class="form-group text-center">
+                <a href="https://www.alertover.com/auth/register" target="_blank">注册Alertover账号</a>
+            </div>
+        </form>
+    </div>
+    <div id="popupPage" class="app-wrapper hide">
         <header class="navbar navbar-default">
             <div class="container">
                 <div class="navbar-header">
@@ -18,7 +46,7 @@
                         <span class="icon-bar"></span>
                     </button>
                     <a href="#" id="logoutBtn" class="mk-logout">
-                        <span class="glyphicon glyphicon-log-out"></span>
+                        退出
                     </a>
                 </div>
                 <nav id="sourcesList" class="navbar-collapse collapse">
@@ -27,6 +55,7 @@
                 </nav>
             </div>
         </header>
+
         <div id="content" class="content">
         </div>
     </div>

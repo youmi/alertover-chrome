@@ -2,6 +2,10 @@
     width:480px;
     min-height:580px;
 }
+.default-message {
+    text-align:center;
+    margin-top:200px;
+}
 .navbar {
     margin-bottom:0px;
 }
@@ -38,7 +42,7 @@
 }
 .mk-logout {
     float:right;
-    font-size:18px;
+    font-size:16px;
     margin:10px 8px 5px 15px;
     padding:4px 10px;
     color:white;
@@ -46,6 +50,7 @@
 .mk-logout:focus,
 .mk-logout:hover {
     color:#ddd;
+    text-decoration:none;
 }
 .source-ul img {
     width:20px;
@@ -53,6 +58,9 @@
     border-radius:5px;
     vertical-align:bottom;
     margin-right:10px;
+}
+.message-alert a {
+    color:#a94442;
 }
 .mk-media {
     margin-top:0;

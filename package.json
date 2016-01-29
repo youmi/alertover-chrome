@@ -27,6 +27,6 @@
     ]
   },
   "browserify-shim": {
-    "./src/js/html5sql.js": "html5sql"
+    "./package/src/js/html5sql.js": "html5sql"
   }
 }
