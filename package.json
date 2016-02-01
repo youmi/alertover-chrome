@@ -18,15 +18,6 @@
   },
   "devDependencies": {
     "browserify": "~13.0.0",
-    "browserify-shim": "~3.8.12",
     "watchify": "~3.7.0"
   },
-  "browserify": {
-    "transform": [
-      "browserify-shim"
-    ]
-  },
-  "browserify-shim": {
-    "./package/src/js/html5sql.js": "html5sql"
-  }
 }
