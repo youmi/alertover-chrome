@@ -1,4 +1,349 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+var $ = window.$;
+var html5sql = window.html5sql;
+var Promise = require('promise');
+var Moment = require('moment');
+
+var config = {
+    ver : 20,
+    dbName : 'alertover.db',
+    dbDisplay : 'alertover',
+    dbSize : 5*1024*1024,
+
+    getMessagesUrl : 'https://api.alertover.com/api/v1/get_msg',
+    loginUrl : 'https://api.alertover.com/api/v1/login',
+    update : 'https://api.alertover.com/api/v1/update',
+
+    pageNum : 10
+};
+
+// 包装数据库相关方法
+var db = (function(){
+    html5sql.openDatabase(config['dbName'], config['dbDisplay'], config['dbSize']);
+    return {
+        query : function(sql){
+            return new Promise(function(resolve, reject){
+                html5sql.process(
+                    sql,
+                    function(tr, re){
+                        resolve([tr, re]);
+                    }, function(error, statement){
+                        reject([error, statement]);
+                    }
+                );
+            });
+        }
+    };
+})();
+
+var base = (function(){
+    return {
+        page    :   1,
+        sid     :   'all',
+        flat    :   false,
+
+        windowHeight : $(window).height(),
+        $content : $('#content'),
+        $sourcesUl : $('#sourcesUl'),
+
+        renderSourcesUl : function(results){
+            this.$sourcesUl.append('<li class="active"><a class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
+            for(var i=0; i<results.length; i++){
+                template = '<li><a class="sourcesItem" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a></li>';
+                this.$sourcesUl.append(template);
+            }
+        },
+
+        renderContent : function(results){
+            for(var i=0; i<results.length; i++){
+                if(results.item(i)['priority']){
+                    var template = '<div class="media mk-media important-media">';
+                } else {
+                    var template = '<div class="media mk-media">';
+                }
+                template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="'+results.item(i)['source_icon']+'"></span></div>';
+                template += '<div class="media-body"><h4 class="media-heading">'+(results.item(i)['title']?results.item(i)['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results.item(i)['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p>'+results.item(i)['content'];
+                if(results.item(i)['url']){
+                    template += '<p class="media-url"><a target="_black" href="'+ results.item(i)['url'] +'">详细信息</a></p></div></div>';
+                } else {
+                    template += '</div></div>';
+                }
+                this.$content.append(template);
+            }
+        },
+
+        renderPage : function(pageSelector, fn){
+            $('.app-wrapper').addClass('hide');
+            $(pageSelector).removeClass('hide');
+            if(fn){
+                fn();
+            }
+        }
+    }
+})();
+
+function scrollHandler(e){
+    if(!base.flat){
+        base.flat = true;
+        var scrollEvent = setTimeout(function(){
+            var documentHeight = $(document).height();
+            var scrollTop = $(document).scrollTop();
+            if(documentHeight-scrollTop-base.windowHeight < 400){
+                var offset = base.page*config['pageNum'];
+                if(base.sid == 'all'){
+                    sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum']+" OFFSET "+offset;
+                }
+                else {
+                    sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum']+" OFFSET "+offset;
+                }
+                db.query(sql).then(function(da){
+                    if(da[1].rows.length){
+                        base.renderContent(da[1].rows);
+                        base.page += 1;
+                    }
+                    if(da[1].rows.length == config['pageNum']){
+                        base.flat = false;
+                    }
+                }, function(err){console.log(err[0]);});
+            }
+            else {
+                base.flat = false;
+            }
+        }, 500)
+    }
+}
+
+function changeSourceHandler(e){
+    e.preventDefault();
+
+    var $content = $('#content');
+    var $sourcesUl = $('#sourcesUl');
+
+    // @转换发送源 初始化相关参数
+    base.sid = $(e.target).data('sid');
+    base.page = 1;
+    base.flat = false;
+
+    if(base.sid == 'all'){
+        sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum'];
+    }
+    else {
+        sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum'];
+    }
+    db.query(sql).then(function(da){
+        $content.empty();
+        if(da[1].rows.length){
+            base.renderContent(da[1].rows);
+        }
+        if(da[1].rows.length == config['pageNum']){
+            base.flat = false;
+        }
+        base.page += 1;
+        $('#sourcesList').collapse('hide');
+        $sourcesUl.find('li').removeClass('active');
+        activeAttr = '[data-sid="'+ base.sid +'"]';
+        $sourcesUl.find(activeAttr).parent('li').addClass('active');
+    });
+}
+
+function logoutHandler(e){
+    e.preventDefault();
+    //用户退出 清空数据库
+    // 检查并初始化客户端数据库
+    localStorage.clear();
+    var bg = chrome.extension.getBackgroundPage();
+    bg.bgScript.disconnect();
+    db.query([
+        "DROP TABLE messages;",
+        "DROP TABLE sources;"
+    ]).then(function(){
+        base.renderPage('#loginPage', function(){
+            // 初始化参数
+            base.page = 1;
+            base.sid = 'all';
+            base.flat = false;
+            base.$content.empty();
+            base.$sourcesUl.empty();
+            $('#popupPage').off();
+            $('#loginPage').on('submit', '#loginForm', loginHandler);
+        });
+    });
+}
+
+function loginHandler(e){
+    e.preventDefault()
+    $.ajax({
+        url : config['loginUrl'],
+        method : 'post',
+        contentType : 'application/json',
+        dataType : 'json',
+        data : JSON.stringify({
+            email : $('#emailInput').val(),
+            password : $('#passwordInput').val()
+        }),
+        success : function(da){
+            if(da.code === 0){
+                localStorage.setItem('aosession', da['data']['session']);
+                localStorage.setItem('uid', da['data']['uid']);
+
+                // 启动bgPage
+                var bg = chrome.extension.getBackgroundPage();
+                bg.bgScript.init();
+                base.renderPage('#popupPage', function(){
+                    $('#loginPage').off();
+                    initPopup();
+                });
+            }
+            else {
+                alert(da['msg']);
+            }
+        }
+    });
+}
+
+function initPopup(){
+
+    var session = localStorage.getItem('aosession');
+    var lastUpdate = localStorage.getItem('lastUpdate');
+    var now = Moment().unix();
+    if(!lastUpdate){
+        lastUpdate = Moment().subtract(2, 'days').unix();
+        localStorage.setItem('lastUpdate', lastUpdate);
+    }
+
+    // 事件绑定
+    $(document).on('scroll', scrollHandler);
+    $('#popupPage').on('click', '[data-sid]', changeSourceHandler);
+    $('#popupPage').on('click', '#logoutBtn', logoutHandler);
+
+    // 检查并初始化客户端数据库
+    var createTablesSql = [
+        "CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, msgid INTEGER UNIQUE, sid INTEGER, title TEXT, content TEXT, url TEXT, rt INTEGER, priority INTEGER);",
+        "INSERT OR IGNORE INTO messages VALUES (NULL,0,0,'欢迎使用Alertover','收到这条信息时，你可以通过该设备接收Alertover信息。\n点击下面链接来设置你的账户','https://www.alertover.com',"+ now +",0);",
+        "CREATE TABLE IF NOT EXISTS sources (sid INTEGER UNIQUE, name TEXT, source_icon TEXT);",
+        "INSERT OR IGNORE INTO sources VALUES (0, 'Alertover', 'https://www.alertover.com/static/imgs/alertover.png');",
+    ];
+    var pCreateTables = db.query(createTablesSql);
+
+    //获取本地数据库里的信息 并且分页 
+    pCreateTables.then(function(da){
+        return db.query("SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum']);
+    }).then(function(da){
+        base.renderContent(da[1].rows);
+    });
+    //获取本地数据库里的信息 渲染sourcelist 
+    pCreateTables.then(function(da){
+        return db.query("SELECT * FROM sources");
+    }).then(function(da){
+        base.renderSourcesUl(da[1].rows);
+    });
+
+    // 获取最新信息 并写入数据库
+    var pGetMessages = new Promise(function(resolve, reject){
+        // 获取最新信息 并存到客户端数据库
+        $.ajax({
+            url : config.getMessagesUrl,
+            method : 'get',
+            dataType : 'json',
+            data : {
+                'session' : session,
+                'devname' : 'chrome',
+                'from' : lastUpdate 
+            },
+            success : function(da){
+                if(da.code === 0 && (da['data'].length > 0)){
+                    resolve(da);
+                }
+                else {
+                    reject(da);
+                }
+            },
+            error : function(err){
+                reject(err);
+            }
+        });
+    });
+    var pSaveMessages = Promise.all([pGetMessages, pCreateTables]).then(function(da){
+        var messages = da[0]['data'];
+        var sqls = [];
+        for(var i=0;i<messages.length;i++){
+            sqls.push({
+                "sql" : "REPLACE INTO messages VALUES (NULL,?,?,?,?,?,?,?)",
+                "data" : [messages[i]['msgid'], messages[i]['sid'], messages[i]['title'], messages[i]['content'], messages[i]['url'], messages[i]['rt'], messages[i]['priority']]
+            });
+            sqls.push({
+                "sql" : "REPLACE INTO sources VALUES (?,?,?)",
+                "data" : [messages[i]['sid'], messages[i]['source'], messages[i]['source_icon']]
+            });
+        }
+        return db.query(sqls);
+    }, function(err){
+        return Promise.reject('没有新增信息');
+    });
+    var pLoadMessages = pSaveMessages.then(function(){
+        //获取本地数据库里的信息 并且分页 
+        return db.query("SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY messages.rt DESC LIMIT "+config['pageNum']);
+    }, function(err){
+        console.log(err);
+    });
+    pLoadMessages.then(function(da){
+        results = da[1]['rows'];
+        base.$content.empty();
+        base.renderContent(results);
+        db.query("SELECT * FROM sources").then(function(da){
+            base.$sourcesUl.empty();
+            base.renderSourcesUl(da[1].rows);
+        });
+        localStorage.setItem('lastUpdate', da[1]['rows'][0]['rt']);
+    }, function(err){
+        console.log(err);
+    });
+
+    // 检查更新
+    $.ajax({
+        url : config.update,
+        method : 'get',
+        data : {
+            'platform' : 'chrome',
+        },
+        success : function(da){
+            if(da.code == 0 && (da.data['ver'] > config['ver'])){
+                var messageAlert = '<div class="alert alert-danger alert-dismissible message-alert" role="alert"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button><span class="message">'
+                messageAlert += '<a target="_blank" href="'+da.data['url']+'">点击获取最新版本的Alertover插件</a>';
+                messageAlert += '</span></div>';
+                $(messageAlert).insertBefore(base.$content);
+            }
+        }
+    });
+}
+
+$(document).ready(function(){
+    // 清空角标
+    chrome.browserAction.setBadgeText({text : ''}); 
+
+    // @todo support
+    if(!(window.openDatabase && window.Notification)){
+        $('#defaultMessage').html('<a target="_blank" href="http://www.google.cn/chrome/browser/desktop/index.html">请先更新你的chrome浏览器</a>');
+        return;
+    }
+
+    var session = localStorage.getItem('aosession');
+    if(session){
+        base.renderPage('#popupPage', function(){
+            initPopup();
+        });
+    }
+    else {
+        // 没有登录 请先登录
+        // @todo 登录完清除数据库数据
+        base.renderPage('#loginPage', function(){
+            $('#loginPage').on('submit', '#loginForm', loginHandler);
+        });
+    }
+
+});
+
+},{"moment":2,"promise":3}],2:[function(require,module,exports){
 //! moment.js
 //! version : 2.11.1
 //! authors : Tim Wood, Iskren Chernev, Moment.js contributors
@@ -3605,12 +3950,12 @@
     return _moment;
 
 }));
-},{}],2:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib')
 
-},{"./lib":7}],3:[function(require,module,exports){
+},{"./lib":8}],4:[function(require,module,exports){
 'use strict';
 
 var asap = require('asap/raw');
@@ -3825,7 +4170,7 @@ function doResolve(fn, promise) {
   }
 }
 
-},{"asap/raw":11}],4:[function(require,module,exports){
+},{"asap/raw":12}],5:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -3840,7 +4185,7 @@ Promise.prototype.done = function (onFulfilled, onRejected) {
   });
 };
 
-},{"./core.js":3}],5:[function(require,module,exports){
+},{"./core.js":4}],6:[function(require,module,exports){
 'use strict';
 
 //This file contains the ES6 extensions to the core Promises/A+ API
@@ -3949,7 +4294,7 @@ Promise.prototype['catch'] = function (onRejected) {
   return this.then(null, onRejected);
 };
 
-},{"./core.js":3}],6:[function(require,module,exports){
+},{"./core.js":4}],7:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -3967,7 +4312,7 @@ Promise.prototype['finally'] = function (f) {
   });
 };
 
-},{"./core.js":3}],7:[function(require,module,exports){
+},{"./core.js":4}],8:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./core.js');
@@ -3977,7 +4322,7 @@ require('./es6-extensions.js');
 require('./node-extensions.js');
 require('./synchronous.js');
 
-},{"./core.js":3,"./done.js":4,"./es6-extensions.js":5,"./finally.js":6,"./node-extensions.js":8,"./synchronous.js":9}],8:[function(require,module,exports){
+},{"./core.js":4,"./done.js":5,"./es6-extensions.js":6,"./finally.js":7,"./node-extensions.js":9,"./synchronous.js":10}],9:[function(require,module,exports){
 'use strict';
 
 // This file contains then/promise specific extensions that are only useful
@@ -4109,7 +4454,7 @@ Promise.prototype.nodeify = function (callback, ctx) {
   });
 }
 
-},{"./core.js":3,"asap":10}],9:[function(require,module,exports){
+},{"./core.js":4,"asap":11}],10:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -4173,7 +4518,7 @@ Promise.disableSynchronous = function() {
   Promise.prototype.getState = undefined;
 };
 
-},{"./core.js":3}],10:[function(require,module,exports){
+},{"./core.js":4}],11:[function(require,module,exports){
 "use strict";
 
 // rawAsap provides everything we need except exception management.
@@ -4241,7 +4586,7 @@ RawTask.prototype.call = function () {
     }
 };
 
-},{"./raw":11}],11:[function(require,module,exports){
+},{"./raw":12}],12:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -4465,688 +4810,4 @@ rawAsap.makeRequestCallFromTimer = makeRequestCallFromTimer;
 // https://github.com/tildeio/rsvp.js/blob/cddf7232546a9cf858524b75cde6f9edf72620a7/lib/rsvp/asap.js
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],12:[function(require,module,exports){
-(function (global){
-; var __browserify_shim_require__=require;(function browserifyShim(module, exports, require, define, browserify_shim__define__module__export__) {
-/* ***** html5sql.js ******
- *
- * Description: A helper javascript module for creating and working with
- *     HTML5 Web Databases.
- *
- * License: MIT license <http://www.opensource.org/licenses/mit-license.php>
- *
- * Authors: Ken Corbett Jr
- *
- * Version 0.9.2
- * 
- */
-
-var html5sql = (function () {
-	
-	var readTransactionAvailable = false,
-		doNothing = function () {},
-		emptyArray = [],
-		trim = function (string) {
-			return string.replace(/^\s+/, "").replace(/\s+$/, "");
-		},
-		isArray = function (obj) { // From Underscore.js
-			return Object.prototype.toString.call(obj) === '[object Array]'; 
-		},
-		isUndefined = function(obj) { // From Underscore.js
-		    return obj === void 0;
-		},
-		SelectStmtMatch = new RegExp('^select\\s', 'i'),
-	    isSelectStmt = function (sqlstring) {
-			return SelectStmtMatch.test(sqlstring);
-		},
-		doNothing = function(){},
-		// transaction is an sql transaction, sqlObjects are properly formated
-		// and cleaned SQL objects
-		sqlProcessor = function (transaction, sqlObjects, finalSuccess, failure) {
-			
-			var sequenceNumber = 0,
-				dataForNextTransaction = null,
-				currentSqlObject = null,
-				runTransaction = function () {
-					transaction.executeSql(sqlObjects[sequenceNumber].sql,
-										   sqlObjects[sequenceNumber].data,
-										   successCallback,
-										   failureCallback);
-				},
-				successCallback = function (transaction, results) {
-					var i, max, rowsArray = [];
-
-					if(html5sql.logInfo){
-						console.log("Success processing: " + sqlObjects[sequenceNumber].sql);
-					}
-					
-					//Process the results of a select puting them in a much more manageable array form.
-					if(html5sql.putSelectResultsInArray && isSelectStmt(sqlObjects[sequenceNumber].sql)){
-						for(i = 0, max = results.rows.length; i < max; i++){
-							rowsArray[i] = results.rows.item(i);
-						}
-					} else {
-						rowsArray = null;
-					}
-
-					//Call the success callback provided with sql object
-					//If an array of data is returned use that data as the
-					//data attribute of the next transaction
-					dataForNextTransaction = sqlObjects[sequenceNumber].success(transaction, results, rowsArray);
-					sequenceNumber++;
-					if (dataForNextTransaction && (dataForNextTransaction instanceof Array)) {
-						sqlObjects[sequenceNumber].data = dataForNextTransaction;
-						dataForNextTransaction = null;
-					} else {
-						dataForNextTransaction = null;
-					}
-					
-					if (sqlObjects.length > sequenceNumber) {
-						runTransaction();
-					} else {
-						finalSuccess(transaction, results, rowsArray);
-					}
-				},
-				failureCallback = function (transaction, error) {
-					if(html5sql.logErrors){
-						console.error("Error: " + error.message + " while processing statment "+(sequenceNumber + 1)+": " + sqlObjects[sequenceNumber].sql);
-					}
-					failure(error, sqlObjects[sequenceNumber].sql);
-				};
-			
-			runTransaction();
-		},
-		sqlObjectCreator = function (sqlInput) {
-			var i;
-			if (typeof sqlInput === "string") {
-				trim(sqlInput);
-				
-				//Separate sql statements by their ending semicolon
-				sqlInput = sqlInput.split(';');
-				
-				for(i = 1; i < sqlInput.length; i++){
-					//Ensure semicolons within quotes are replaced
-					while(sqlInput[i].split(/["]/gm).length % 2 === 0 ||
-						  sqlInput[i].split(/[']/gm).length % 2 === 0 ||
-						  sqlInput[i].split(/[`]/gm).length % 2 === 0){
-						 sqlInput.splice(i,2,sqlInput[i] + ";" + sqlInput[i+1]);
-					}
-					//Add back the semicolon at the end of the line
-					sqlInput[i] = trim(sqlInput[i]) + ';';
-					//Get rid of any empty statements
-					if(sqlInput[i] === ';'){
-						sqlInput.splice(i, 1);
-					}
-				}
-			}
-			for (i = 0; i < sqlInput.length; i++) {
-				//If the array item is only a string format it into an sql object
-				if (typeof sqlInput[i] === "string") {
-					sqlInput[i] = {
-						"sql": sqlInput[i],
-						"data": [],
-						"success": doNothing
-					};
-				} else {
-					if(isUndefined(sqlInput[i].data)){
-						sqlInput[i].data = [];
-					}
-					if(isUndefined(sqlInput[i].success)){
-						sqlInput[i].success = doNothing;
-					}
-					// Check to see that the sql object is formated correctly.
-					if (typeof sqlInput[i]         !== "object"   ||
-					    typeof sqlInput[i].sql     !== "string"   ||
-					    typeof sqlInput[i].success !== "function" ||
-						!(sqlInput[i].data instanceof Array)) {
-						throw new Error("Malformed sql object: "+sqlInput[i]);
-					}
-				}
-			}
-			return sqlInput;
-		},
-		statementsAreSelectOnly = function (SQLObjects) {
-		// Returns true if all SQL statement objects are SELECT statements.
-			var i = 0;
-				
-			//Loop over SQL objects ensuring they are select statments
-			do {
-				//If the sql string is not a select statement return false
-				if (!isSelectStmt(SQLObjects[i].sql)) {
-					return false;
-				}
-				i++;
-			} while (i < SQLObjects.length);
-		
-			//If all the statments happen to be select statments return true
-			return true;
-		};
-	return {
-		database: null,
-		logInfo: false,
-		logErrors: false,
-		defaultFailureCallback: doNothing,
-		putSelectResultsInArray: true,
-		openDatabase: function (name, displayname, size, whenOpen) {
-			html5sql.database = openDatabase(name, "", displayname, size);
-			readTransactionAvailable = typeof html5sql.database.readTransaction === 'function';
-			if (whenOpen) {
-				whenOpen();
-			}
-		},
-		
-		process: function (sqlInput, finalSuccessCallback, failureCallback) {
-		/*
-		 *
-		 *	Arguments:
-		 *	
-		 *  sql = [array SQLObjects] ~ collection of SQL statement objects
-		 *           or
-		 *        [array SQLStrings] ~ collection of SQL statement strings
-		 *           or
-		 *        "SQLstring"        ~ SQL string to be split at the ';'
-		 *                             character and processed sequentially
-         *
-		 *  finalSuccessCallback = (function) ~ called after all sql statments have
-		 *                               		been processed.  Optional.
-		 * 
-		 *  failureCallback = (function) ~ called if any of the sql statements
-		 *                                 fails.  A default one is used if none
-		 *                                 is provided.
-		 *                             
-		 *                               
-		 *	SQL statement object:
-		 *	{
-		 *	 sql: "string",      !Required! ~ Your sql as a string
-		 *	 data: [array],       Optional  ~ The array of data to be sequentially
-		 *	                                  inserted into your sql at the ?
-		 *   success: (function), Optional  ~ A function to be called if this
-		 *                                    individual sql statment succeeds.
-		 *                                    If an array is returned it is used as
-		 *                                    the data for the next sql statement
-		 *                                    processed.
-		 *  }
-		 *
-		 *	Usage:
-		 *	html5sql.process(
-		 *		[{
-		 *		   sql: "SELECT * FROM table;",
-		 *		   data: [],
-		 *		   success: function(){}
-		 *		 },
-		 *		 {
-		 *		   sql: "SELECT * FROM table;",
-		 *		   data: [],
-		 *		   success: function(){}
-		 *		 }],
-		 *		function(){},
-		 *		function(){}
-		 *	);
-		 *	
-		 */
-			if (html5sql.database) {
-				
-				var sqlObjects = sqlObjectCreator(sqlInput);
-
-				if(isUndefined(finalSuccessCallback)){
-					finalSuccessCallback = doNothing;
-				}
-
-				if(isUndefined(failureCallback)){
-					failureCallback = html5sql.defaultFailureCallback;
-				}
-
-				if (statementsAreSelectOnly(sqlObjects) && readTransactionAvailable) {
-					html5sql.database.readTransaction(function (transaction) {
-						sqlProcessor(transaction, sqlObjects, finalSuccessCallback, failureCallback);
-					});
-				} else {
-					html5sql.database.transaction(function (transaction) {
-						sqlProcessor(transaction, sqlObjects, finalSuccessCallback, failureCallback);
-					});
-				}
-			} else {
-				// Database hasn't been opened.
-				if(html5sql.logErrors){
-					console.error("Error: Database needs to be opened before sql can be processed.");
-				}
-				return false;
-			}
-		},
-	
-		changeVersion: function (oldVersion, newVersion, sqlInput, finalSuccessCallback, failureCallback) {
-		/* This is the same as html5sql.process but used when you want to change the
-		 * version of your database.  If the database version matches the oldVersion
-		 * passed to the function the statements passed to the funciton are
-		 * processed and the version of the database is changed to the new version.
-		 *
-		 *	Arguments:
-		 *	oldVersion = "String"             ~ the old version to upgrade
-		 *	newVersion = "String"             ~ the new version after the upgrade
-		 *  sql = [array SQLObjects] ~ collection of SQL statement objects
-		 *           or
-		 *        [array SQLStrings] ~ collection of SQL statement strings
-		 *           or
-		 *        "SQLstring"        ~ SQL string to be split at the ';'
-		 *                             character and processed sequentially
-         *
-		 *  finalSuccessCallback = (function) ~ called after all sql statments have
-		 *                               		been processed.  Optional.
-		 * 
-		 *  failureCallback = (function) ~ called if any of the sql statements
-		 *                                 fails.  A default one is used if none
-		 *                                 is provided.
-		 *
-		 *	SQL statement object:
-		 *	{
-		 *	 sql: "string",      !Required! ~ Your sql as a string
-		 *	 data: [array],       Optional  ~ The array of data to be sequentially
-		 *	                                  inserted into your sql at the ?
-		 *   success: (function), Optional  ~ A function to be called if this
-		 *                                    individual sql statment succeeds
-		 *   failure: (function), Optional  ~ A function to be called if this
-		 *                                    individual sql statement fails
-		 *  }
-		 *
-		 *	Usage:
-		 *	html5sql.changeVersion(
-		 *	    "1.0",
-		 *	    "2.0",
-		 *		[{
-		 *		   sql: "SELECT * FROM table;",
-		 *		   data: [],
-		 *		   success: function(){},
-		 *		   failure: function(){}
-		 *		 },
-		 *		 {
-		 *		   sql: "SELECT * FROM table;",
-		 *		   data: [],
-		 *		   success: function(){},
-		 *		   failure: function(){}
-		 *		 }],
-		 *		function(){},
-		 *		function(){}
-		 *	);
-		 *	
-		 */
-			if (html5sql.database) {
-				if(html5sql.database.version === oldVersion){
-					var sqlObjects = sqlObjectCreator(sqlInput);
-				
-					if(isUndefined(finalSuccessCallback)){
-					finalSuccessCallback = doNothing;
-					}
-
-					if(isUndefined(failureCallback)){
-						failureCallback = html5sql.defaultFailureCallback;
-					}
-
-					html5sql.database.changeVersion(oldVersion, newVersion, function (transaction) {
-						sqlProcessor(transaction, sqlObjects, finalSuccessCallback, failureCallback);
-					});
-				}
-			} else {
-				// Database hasn't been opened.
-				if(html5sql.logErrors){
-					console.log("Error: Database needs to be opened before sql can be processed.");	
-				}
-				return false;
-			}
-		
-		}
-	};
-	
-})();
-
-; browserify_shim__define__module__export__(typeof html5sql != "undefined" ? html5sql : window.html5sql);
-
-}).call(global, undefined, undefined, undefined, undefined, function defineExport(ex) { module.exports = ex; });
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],13:[function(require,module,exports){
-var $ = window.$;
-var html5sql = require('./html5sql.js');
-var Promise = require('promise');
-var Moment = require('moment');
-
-var config = {
-    ver : 20,
-    dbName : 'alertover.db',
-    dbDisplay : 'alertover',
-    dbSize : 5*1024*1024,
-
-    getMessagesUrl : 'https://api.alertover.com/api/v1/get_msg',
-    loginUrl : 'https://api.alertover.com/api/v1/login',
-    update : 'https://api.alertover.com/api/v1/update',
-
-    pageNum : 10
-};
-
-// 包装数据库相关方法
-var db = (function(){
-    html5sql.openDatabase(config['dbName'], config['dbDisplay'], config['dbSize']);
-    return {
-        query : function(sql){
-            return new Promise(function(resolve, reject){
-                html5sql.process(
-                    sql,
-                    function(tr, re){
-                        resolve([tr, re]);
-                    }, function(error, statement){
-                        reject([error, statement]);
-                    }
-                );
-            });
-        }
-    };
-})();
-
-var base = (function(){
-    return {
-        page    :   1,
-        sid     :   'all',
-        flat    :   false,
-
-        windowHeight : $(window).height(),
-        $content : $('#content'),
-        $sourcesUl : $('#sourcesUl'),
-
-        renderSourcesUl : function(results){
-            this.$sourcesUl.append('<li class="active"><a class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
-            for(var i=0; i<results.length; i++){
-                template = '<li><a class="sourcesItem" data-sid="'+ results[i]['sid'] +'" href="#"><img src="'+ results[i]['source_icon'] +'"/>'+ results[i]['name'] +'</a></li>';
-                this.$sourcesUl.append(template);
-            }
-        },
-
-        renderContent : function(results){
-            for(var i=0; i<results.length; i++){
-                if(results[i]['priority']){
-                    var template = '<div class="media mk-media important-media">';
-                } else {
-                    var template = '<div class="media mk-media">';
-                }
-                template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="'+results[i]['source_icon']+'"></span></div>';
-                template += '<div class="media-body"><h4 class="media-heading">'+(results[i]['title']?results[i]['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results[i]['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p>'+results[i]['content'];
-                if(results[i]['url']){
-                    template += '<p class="media-url"><a target="_black" href="'+ results[i]['url'] +'">详细信息</a></p></div></div>';
-                } else {
-                    template += '</div></div>';
-                }
-                this.$content.append(template);
-            }
-        },
-
-        renderPage : function(pageSelector, fn){
-            $('.app-wrapper').addClass('hide');
-            $(pageSelector).removeClass('hide');
-            if(fn){
-                fn();
-            }
-        }
-    }
-})();
-
-function scrollHandler(e){
-    if(!base.flat){
-        base.flat = true;
-        var scrollEvent = setTimeout(function(){
-            var documentHeight = $(document).height();
-            var scrollTop = $(document).scrollTop();
-            if(documentHeight-scrollTop-base.windowHeight < 400){
-                var offset = base.page*config['pageNum'];
-                if(base.sid == 'all'){
-                    sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum']+" OFFSET "+offset;
-                }
-                else {
-                    sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum']+" OFFSET "+offset;
-                }
-                db.query(sql).then(function(da){
-                    if(da[1].rows.length){
-                        base.renderContent(da[1].rows);
-                        base.page += 1;
-                    }
-                    if(da[1].rows.length == config['pageNum']){
-                        base.flat = false;
-                    }
-                }, function(err){console.log(err[0]);});
-            }
-            else {
-                base.flat = false;
-            }
-        }, 500)
-    }
-}
-
-function changeSourceHandler(e){
-    e.preventDefault();
-
-    var $content = $('#content');
-    var $sourcesUl = $('#sourcesUl');
-
-    // @转换发送源 初始化相关参数
-    base.sid = $(e.target).data('sid');
-    base.page = 1;
-    base.flat = false;
-
-    if(base.sid == 'all'){
-        sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum'];
-    }
-    else {
-        sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum'];
-    }
-    console.log(base.sid);
-    db.query(sql).then(function(da){
-        $content.empty();
-        if(da[1].rows.length){
-            base.renderContent(da[1].rows);
-        }
-        if(da[1].rows.length == config['pageNum']){
-            base.flat = false;
-        }
-        base.page += 1;
-        $('#sourcesList').collapse('hide');
-        $sourcesUl.find('li').removeClass('active');
-        activeAttr = '[data-sid="'+ base.sid +'"]';
-        $sourcesUl.find(activeAttr).parent('li').addClass('active');
-    });
-}
-
-function logoutHandler(e){
-    e.preventDefault();
-    //用户退出 清空数据库
-    // 检查并初始化客户端数据库
-    localStorage.clear();
-    var bg = chrome.extension.getBackgroundPage();
-    bg.bgScript.disconnect();
-    db.query([
-        "DROP TABLE messages;",
-        "DROP TABLE sources;"
-    ]).then(function(){
-        base.renderPage('#loginPage', function(){
-            // 初始化参数
-            base.page = 1;
-            base.sid = 'all';
-            base.flat = false;
-            base.$content.empty();
-            base.$sourcesUl.empty();
-            $('#popupPage').off();
-            $('#loginPage').on('submit', '#loginForm', loginHandler);
-        });
-    });
-}
-
-function loginHandler(e){
-    e.preventDefault()
-    $.ajax({
-        url : config['loginUrl'],
-        method : 'post',
-        contentType : 'application/json',
-        dataType : 'json',
-        data : JSON.stringify({
-            email : $('#emailInput').val(),
-            password : $('#passwordInput').val()
-        }),
-        success : function(da){
-            if(da.code === 0){
-                localStorage.setItem('aosession', da['data']['session']);
-                localStorage.setItem('uid', da['data']['uid']);
-
-                // 启动bgPage
-                var bg = chrome.extension.getBackgroundPage();
-                bg.bgScript.init();
-                base.renderPage('#popupPage', function(){
-                    $('#loginPage').off();
-                    initPopup();
-                });
-            }
-            else {
-                alert(da['msg']);
-            }
-        }
-    });
-}
-
-function initPopup(){
-
-    var session = localStorage.getItem('aosession');
-    var lastUpdate = localStorage.getItem('lastUpdate');
-    var now = Moment().unix();
-    if(!lastUpdate){
-        lastUpdate = Moment().subtract(2, 'days').unix();
-        localStorage.setItem('lastUpdate', lastUpdate);
-    }
-
-    // 事件绑定
-    $(document).on('scroll', scrollHandler);
-    $('#popupPage').on('click', '[data-sid]', changeSourceHandler);
-    $('#popupPage').on('click', '#logoutBtn', logoutHandler);
-
-    // 检查并初始化客户端数据库
-    var createTablesSql = [
-        "CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, msgid INTEGER UNIQUE, sid INTEGER, title TEXT, content TEXT, url TEXT, rt INTEGER, priority INTEGER);",
-        "INSERT OR IGNORE INTO messages VALUES (NULL,0,0,'欢迎使用Alertover','收到这条信息时，你可以通过该设备接收Alertover信息。\n点击下面链接来设置你的账户','https://www.alertover.com',"+ now +",0);",
-        "CREATE TABLE IF NOT EXISTS sources (sid INTEGER UNIQUE, name TEXT, source_icon TEXT);",
-        "INSERT OR IGNORE INTO sources VALUES (0, 'Alertover', 'https://www.alertover.com/static/imgs/alertover.png');",
-    ];
-    var pCreateTables = db.query(createTablesSql);
-
-    //获取本地数据库里的信息 并且分页 
-    pCreateTables.then(function(da){
-        return db.query("SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum']);
-    }).then(function(da){
-        base.renderContent(da[1].rows);
-    });
-    //获取本地数据库里的信息 渲染sourcelist 
-    pCreateTables.then(function(da){
-        return db.query("SELECT * FROM sources");
-    }).then(function(da){
-        base.renderSourcesUl(da[1].rows);
-    });
-
-    // 获取最新信息 并写入数据库
-    var pGetMessages = new Promise(function(resolve, reject){
-        // 获取最新信息 并存到客户端数据库
-        $.ajax({
-            url : config.getMessagesUrl,
-            method : 'get',
-            dataType : 'json',
-            data : {
-                'session' : session,
-                'devname' : 'chrome',
-                'from' : lastUpdate 
-            },
-            success : function(da){
-                if(da.code === 0 && (da['data'].length > 0)){
-                    resolve(da);
-                }
-                else {
-                    reject(da);
-                }
-            },
-            error : function(err){
-                reject(err);
-            }
-        });
-    });
-    var pSaveMessages = Promise.all([pGetMessages, pCreateTables]).then(function(da){
-        var messages = da[0]['data'];
-        var sqls = [];
-        for(var i=0;i<messages.length;i++){
-            sqls.push({
-                "sql" : "REPLACE INTO messages VALUES (NULL,?,?,?,?,?,?,?)",
-                "data" : [messages[i]['msgid'], messages[i]['sid'], messages[i]['title'], messages[i]['content'], messages[i]['url'], messages[i]['rt'], messages[i]['priority']]
-            });
-            sqls.push({
-                "sql" : "REPLACE INTO sources VALUES (?,?,?)",
-                "data" : [messages[i]['sid'], messages[i]['source'], messages[i]['source_icon']]
-            });
-        }
-        return db.query(sqls);
-    }, function(err){
-        return Promise.reject('没有新增信息');
-    });
-    var pLoadMessages = pSaveMessages.then(function(){
-        //获取本地数据库里的信息 并且分页 
-        return db.query("SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY messages.rt DESC LIMIT "+config['pageNum']);
-    }, function(err){
-        console.log(err);
-    });
-    pLoadMessages.then(function(da){
-        results = da[1]['rows'];
-        base.$content.empty();
-        base.renderContent(results);
-        db.query("SELECT * FROM sources").then(function(da){
-            base.$sourcesUl.empty();
-            base.renderSourcesUl(da[1].rows);
-        });
-        localStorage.setItem('lastUpdate', da[1]['rows'][0]['rt']);
-    }, function(err){
-        console.log(err);
-    });
-
-    // 检查更新
-    $.ajax({
-        url : config.update,
-        method : 'get',
-        data : {
-            'platform' : 'chrome',
-        },
-        success : function(da){
-            if(da.code == 0 && (da.data['ver'] > config['ver'])){
-                var messageAlert = '<div class="alert alert-danger alert-dismissible message-alert" role="alert"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button><span class="message">'
-                messageAlert += '<a target="_blank" href="'+da.data['url']+'">点击获取最新版本的Alertover插件</a>';
-                messageAlert += '</span></div>';
-                $(messageAlert).insertBefore(base.$content);
-            }
-        }
-    });
-}
-
-$(document).ready(function(){
-    // 清空角标
-    chrome.browserAction.setBadgeText({text : ''}); 
-
-    // @todo support
-    if(!(window.openDatabase && window.Notification)){
-        $('#defaultMessage').html('<a target="_blank" href="http://www.google.cn/chrome/browser/desktop/index.html">请先更新你的chrome浏览器</a>');
-        return;
-    }
-
-    var session = localStorage.getItem('aosession');
-    if(session){
-        base.renderPage('#popupPage', function(){
-            initPopup();
-        });
-    }
-    else {
-        // 没有登录 请先登录
-        // @todo 登录完清除数据库数据
-        base.renderPage('#loginPage', function(){
-            $('#loginPage').on('submit', '#loginForm', loginHandler);
-        });
-    }
-
-});
-
-},{"./html5sql.js":12,"moment":1,"promise":2}]},{},[13]);
+},{}]},{},[1]);

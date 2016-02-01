@@ -1,5 +1,5 @@
 var $ = window.$;
-var html5sql = require('./html5sql.js');
+var html5sql = window.html5sql;
 var Promise = require('promise');
 var Moment = require('moment');
 
@@ -48,22 +48,22 @@ var base = (function(){
         renderSourcesUl : function(results){
             this.$sourcesUl.append('<li class="active"><a class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
             for(var i=0; i<results.length; i++){
-                template = '<li><a class="sourcesItem" data-sid="'+ results[i]['sid'] +'" href="#"><img src="'+ results[i]['source_icon'] +'"/>'+ results[i]['name'] +'</a></li>';
+                template = '<li><a class="sourcesItem" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a></li>';
                 this.$sourcesUl.append(template);
             }
         },
 
         renderContent : function(results){
             for(var i=0; i<results.length; i++){
-                if(results[i]['priority']){
+                if(results.item(i)['priority']){
                     var template = '<div class="media mk-media important-media">';
                 } else {
                     var template = '<div class="media mk-media">';
                 }
-                template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="'+results[i]['source_icon']+'"></span></div>';
-                template += '<div class="media-body"><h4 class="media-heading">'+(results[i]['title']?results[i]['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results[i]['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p>'+results[i]['content'];
-                if(results[i]['url']){
-                    template += '<p class="media-url"><a target="_black" href="'+ results[i]['url'] +'">详细信息</a></p></div></div>';
+                template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="'+results.item(i)['source_icon']+'"></span></div>';
+                template += '<div class="media-body"><h4 class="media-heading">'+(results.item(i)['title']?results.item(i)['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results.item(i)['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p>'+results.item(i)['content'];
+                if(results.item(i)['url']){
+                    template += '<p class="media-url"><a target="_black" href="'+ results.item(i)['url'] +'">详细信息</a></p></div></div>';
                 } else {
                     template += '</div></div>';
                 }
@@ -129,7 +129,6 @@ function changeSourceHandler(e){
     else {
         sql = "SELECT * FROM messages JOIN sources ON messages.sid=sources.sid WHERE sources.sid="+ base.sid  +" ORDER BY rt DESC LIMIT "+config['pageNum'];
     }
-    console.log(base.sid);
     db.query(sql).then(function(da){
         $content.empty();
         if(da[1].rows.length){
