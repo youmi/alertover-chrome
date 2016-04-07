@@ -119,7 +119,14 @@ var bgScript = window.bgScript = {
                 body : data['content'],
                 icon : data['icon']
             });
-
+            
+            var link = data['url'];
+            if (link) { 
+                notification.onclick = function() {
+                    window.open(url);
+                }
+            }
+            
             chrome.browserAction.getBadgeText({},function(da){
                 da = da?da:0;
                 chrome.browserAction.setBadgeText({
