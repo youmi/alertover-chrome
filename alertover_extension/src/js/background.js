@@ -123,7 +123,7 @@ var bgScript = window.bgScript = {
             var link = data['url'];
             if (link) { 
                 notification.onclick = function() {
-                    window.open(url);
+                    window.open(link);
                 }
             }
             
