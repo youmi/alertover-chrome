@@ -120,7 +120,7 @@ var bgScript = window.bgScript = {
                 icon : data['icon']
             });
             
-            var link = data['url'];
+            var link = data['extra']['url'];
             if (link) { 
                 notification.onclick = function() {
                     window.open(link);
