@@ -1,14 +1,14 @@
 {
   "name": "alertover_chrome",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Alertover extension in chrome",
   "main": "manifest.json",
   "keywords": [
     "alertover",
     "chrome"
   ],
-  "author": "liangjiahao@youmi.net",
-  "license": "BSD-2-Clause",
+  "author": "alertover@youmi.net",
+  "license": "MIT",
   "dependencies": {
     "jquery": "~2.1.4",
     "bootstrap": "~3.3.6",

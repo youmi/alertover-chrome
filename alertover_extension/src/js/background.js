@@ -1,12 +1,12 @@
 var $ = require('jquery');
-var io = require('socket.io/node_modules/socket.io-client');
+var io = require('socket.io-client');
 var Promise = require('promise');
 var Moment = require('moment');
 var socket;
 
 var base = (function(){
-    var getPushtokenUrl = 'https://api.alertover.com/api/v1/get_pushtoken'; 
-    var getGroupIds = 'https://api.alertover.com/api/v1/get_group_ids'; 
+    var getPushtokenUrl = 'https://api.alertover.com/api/v1/get_pushtoken';
+    var getGroupIds = 'https://api.alertover.com/api/v1/get_group_ids';
 
     return {
         pushSocketUrl : 'http://push.alertover.com',
@@ -120,11 +120,18 @@ var bgScript = window.bgScript = {
                 icon : data['icon']
             });
 
+            var link = data['extra']['url'];
+            if (link) {
+                notification.onclick = function() {
+                    window.open(link);
+                }
+            }
+
             chrome.browserAction.getBadgeText({},function(da){
                 da = da?da:0;
                 chrome.browserAction.setBadgeText({
                     text : (parseInt(da)+1).toString(),
-                }); 
+                });
             });
         });
 
@@ -143,7 +150,7 @@ var bgScript = window.bgScript = {
     },
 
     disconnect : function(){
-        socket.disconnect(); 
+        socket.disconnect();
     }
 }
 
