@@ -144,4 +144,15 @@ background-color: #ccc;
 ::-webkit-scrollbar-thumb:active{
 -webkit-border-radius:20px;
 background-color: #ccc;
-} 
+}
+.source-ul li {
+    border-bottom: 1px solid #dcdcdc;
+}
+.source-ul li span {
+    position: absolute;
+    right: 10px;
+    top: 12px;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+}

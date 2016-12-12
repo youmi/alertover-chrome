@@ -47,9 +47,9 @@ var base = (function(){
         $sourcesUl : $('#sourcesUl'),
 
         renderSourcesUl : function(results){
-            this.$sourcesUl.append('<li class="active"><a class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
+            this.$sourcesUl.append('<li class="active"><a id="allMessgaes" class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
             for(var i=0; i<results.length; i++){
-                template = '<li><a class="sourcesItem" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a></li>';
+                template = '<li><a class="sourcesItem" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a><span data-rid="'+ results.item(i)['sid'] +'">清空</span></li>';
                 this.$sourcesUl.append(template);
             }
         },
@@ -146,6 +146,17 @@ function changeSourceHandler(e){
     });
 }
 
+function removeSourceHandler(e) {
+    var $content = $('#content');
+    var $sourcesUl = $('#sourcesUl');
+    var rid = $(e.target).data('rid');
+    var sql = "DELETE FROM messages WHERE sid=" + rid;
+
+    db.query(sql).then(function(da) {
+        $('#allMessgaes').trigger('click')
+    })
+}
+
 function logoutHandler(e){
     e.preventDefault();
     //用户退出 清空数据库
@@ -191,7 +202,7 @@ function loginHandler(e){
                 bg.bgScript.init();
                 base.renderPage('#popupPage', function(){
                     $('#loginPage').off();
-                    initPopup();
+                    initPopup(true);
                 });
             }
             else {
@@ -201,7 +212,7 @@ function loginHandler(e){
     });
 }
 
-function initPopup(){
+function initPopup(first){
 
     var session = localStorage.getItem('aosession');
     var lastUpdate = localStorage.getItem('lastUpdate');
@@ -214,15 +225,19 @@ function initPopup(){
     // 事件绑定
     $(document).on('scroll', scrollHandler);
     $('#popupPage').on('click', '[data-sid]', changeSourceHandler);
+    $('#popupPage').on('click', '[data-rid]', removeSourceHandler);
     $('#popupPage').on('click', '#logoutBtn', logoutHandler);
 
     // 检查并初始化客户端数据库
     var createTablesSql = [
         "CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, msgid INTEGER UNIQUE, sid INTEGER, title TEXT, content TEXT, url TEXT, rt INTEGER, priority INTEGER);",
-        "INSERT OR IGNORE INTO messages VALUES (NULL,0,0,'欢迎使用Alertover','收到这条信息时，你可以通过该设备接收Alertover信息。\n点击下面链接来设置你的账户','https://www.alertover.com',"+ now +",0);",
+        //"INSERT OR IGNORE INTO messages VALUES (NULL,0,0,'欢迎使用Alertover','收到这条信息时，你可以通过该设备接收Alertover信息。\n点击下面链接来设置你的账户','https://www.alertover.com',"+ now +",0);",
         "CREATE TABLE IF NOT EXISTS sources (sid INTEGER UNIQUE, name TEXT, source_icon TEXT);",
         "INSERT OR IGNORE INTO sources VALUES (0, 'Alertover', 'https://www.alertover.com/static/imgs/alertover.png');",
     ];
+    if (first) {
+        createTablesSql.splice(1, 0, "INSERT OR IGNORE INTO messages VALUES (NULL,0,0,'欢迎使用Alertover','收到这条信息时，你可以通过该设备接收Alertover信息。\n点击下面链接来设置你的账户','https://www.alertover.com',"+ now +",0);")
+    }
     var pCreateTables = db.query(createTablesSql);
 
     //获取本地数据库里的信息 并且分页 
@@ -491,9 +506,12 @@ function flush() {
 
 // Safari 6 and 6.1 for desktop, iPad, and iPhone are the only browsers that
 // have WebKitMutationObserver but not un-prefixed MutationObserver.
-// Must use `global` instead of `window` to work in both frames and web
+// Must use `global` or `self` instead of `window` to work in both frames and web
 // workers. `global` is a provision of Browserify, Mr, Mrs, or Mop.
-var BrowserMutationObserver = global.MutationObserver || global.WebKitMutationObserver;
+
+/* globals self */
+var scope = typeof global !== "undefined" ? global : self;
+var BrowserMutationObserver = scope.MutationObserver || scope.WebKitMutationObserver;
 
 // MutationObservers are desirable because they have high priority and work
 // reliably everywhere they are implemented.

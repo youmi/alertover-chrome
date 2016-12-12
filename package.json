@@ -1,6 +1,6 @@
 {
   "name": "alertover_chrome",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Alertover extension in chrome",
   "main": "manifest.json",
   "keywords": [
@@ -19,5 +19,19 @@
   "devDependencies": {
     "browserify": "~13.0.0",
     "watchify": "~3.7.0"
-  }
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/youmi/alertover-chrome.git"
+  },
+  "bugs": {
+    "url": "https://github.com/youmi/alertover-chrome/issues"
+  },
+  "homepage": "https://github.com/youmi/alertover-chrome#readme"
 }
