@@ -2,7 +2,7 @@
     "manifest_version": 2,
     "name": "Alertover",
     "description": "Alertover extension in chrome",
-    "version": "0.3.0",
+    "version": "0.3.1",
 
     "background" : {
         "scripts" : ["/dist/js/background.js"]
