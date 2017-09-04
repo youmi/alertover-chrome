@@ -21,9 +21,14 @@
 
     "permissions": [
         "activeTab",
-        "notifications",
+        //"notifications",
         "https://ajax.googleapis.com/",
         "https://api.alertover.com/",
         "http://push.alertover.com/"
+    ],
+
+    "optional_permissions": [
+        "notifications",
+        "http://www.google.com/"
     ]
 }

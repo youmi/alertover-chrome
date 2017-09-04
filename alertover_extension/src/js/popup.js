@@ -1,7 +1,7 @@
 var $ = window.$;
 var html5sql = window.html5sql;
 var Promise = require('promise');
-var Moment = require('moment');
+var Moment = require('moment');         // 时间处理类库。moment.js
 
 var config = {
     ver : 20,
@@ -47,9 +47,17 @@ var base = (function(){
 
         renderSourcesUl : function(results){
             this.$sourcesUl.append('<li class="active"><a id="allMessgaes" class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
+            this.$sourcesUl.append('<li id="support-notification"><a class="sourcesItem" href="#">开启桌面通知</a>\
+                <span class="green switch"><small></small><input type="checkbox" class="notifica_input" style="display:none"><div class="switch-text"><div class="on">ON</div><div class="off">OFF</div></div></span></li>');
+            //console.log(results);
             for(var i=0; i<results.length; i++){
                 template = '<li><a class="sourcesItem" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a><span data-rid="'+ results.item(i)['sid'] +'">清空</span></li>';
                 this.$sourcesUl.append(template);
+            }
+
+            var notifications = localStorage.getItem('notifications');      // 是否开启桌面通知
+            if(!!notifications){
+                $('.switch').addClass('checked');
             }
         },
 
@@ -114,7 +122,7 @@ function scrollHandler(e){
 
 function changeSourceHandler(e){
     e.preventDefault();
-
+    
     var $content = $('#content');
     var $sourcesUl = $('#sourcesUl');
 
@@ -181,7 +189,12 @@ function logoutHandler(e){
 }
 
 function loginHandler(e){
-    e.preventDefault()
+    e.preventDefault();
+    localStorage.setItem('notifications',1);                // 默认开启弹窗通知
+    chrome.permissions.request({
+        permissions: ['notifications']
+    }, function(granted) {});
+    
     $.ajax({
         url : config['loginUrl'],
         method : 'post',
@@ -210,22 +223,57 @@ function loginHandler(e){
         }
     });
 }
+/* 是否开启桌面通知 */
+function switchNotifica(e){
+    //console.log(e.target);
+    var switch_action = $(e.target),
+            switch_ = switch_action.parents('.switch'),
+            notifica_input = switch_.find('.notifica_input');
+    if(switch_.hasClass('checked')){
+        chrome.permissions.remove({
+            permissions: ['notifications']
+          }, function(removed) {
+            switch_.removeClass('checked');                 // 关闭
+
+            localStorage.removeItem('notifications');
+        });
+    } else {
+        chrome.permissions.request({
+            permissions: ['notifications']
+        }, function(granted) {
+            if(granted){
+                switch_.addClass('checked');                        // 开启
+
+                localStorage.setItem('notifications', '1');
+            }
+            
+        });
+    }
+    //switch_.hasClass('checked') ? switch_.removeClass('checked') : switch_.addClass('checked');
+
+}
 
 function initPopup(first){
 
     var session = localStorage.getItem('aosession');
-    var lastUpdate = localStorage.getItem('lastUpdate');
-    var now = Moment().unix();
-    if(!lastUpdate){
-        lastUpdate = Moment().subtract(2, 'days').unix();
-        localStorage.setItem('lastUpdate', lastUpdate);
+    var lastUpdate = localStorage.getItem('lastUpdate');            // 最后更新时间
+    var now = Moment().unix();                                          
+    if(!lastUpdate){                                                    
+        lastUpdate = Moment().subtract(2, 'days').unix();              // 当前时间减去两天。
+        localStorage.setItem('lastUpdate', lastUpdate); 
     }
+
+    /*setTimeout(function(){
+
+    })*/
+    
 
     // 事件绑定
     $(document).on('scroll', scrollHandler);
     $('#popupPage').on('click', '[data-sid]', changeSourceHandler);
     $('#popupPage').on('click', '[data-rid]', removeSourceHandler);
     $('#popupPage').on('click', '#logoutBtn', logoutHandler);
+    $('#popupPage').on('click', '.switch', switchNotifica);
 
     // 检查并初始化客户端数据库
     var createTablesSql = [

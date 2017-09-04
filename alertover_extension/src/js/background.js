@@ -4,6 +4,10 @@ var Promise = require('promise');
 var Moment = require('moment');
 var socket;
 
+chrome.browserAction.setBadgeBackgroundColor({
+    color: [243, 86, 93, 1],            // color: #f3565d
+})
+
 var base = (function(){
     var getPushtokenUrl = 'https://api.alertover.com/api/v1/get_pushtoken';
     var getGroupIds = 'https://api.alertover.com/api/v1/get_group_ids';
@@ -39,7 +43,7 @@ var base = (function(){
                 $.ajax({
                     url : getGroupIds,
                     method : 'get',
-                    data : {
+                    data : { 
                         'session' : session,
                     },
                     success : function(da){
@@ -61,7 +65,8 @@ var base = (function(){
 
 var bgScript = window.bgScript = {
     init : function(){
-        chrome.browserAction.setIcon({'path' : '/imgs/unactive.png'});
+        console.log('init');
+        //chrome.browserAction.setIcon({'path' : '/imgs/unactive.png'});
         var pushtoken = localStorage.getItem('pushtoken');
         var expired = localStorage.getItem('expired');
         var session = localStorage.getItem('aosession');
@@ -87,6 +92,7 @@ var bgScript = window.bgScript = {
     },
 
     connect : function(){
+        console.log('connect');
         var pushtoken = localStorage.getItem('pushtoken');
         var session = localStorage.getItem('aosession');
         socket = io.connect(base.pushSocketUrl);
@@ -103,28 +109,61 @@ var bgScript = window.bgScript = {
                     'alias' : da['user_id'].split('-').join(''),
                     'tags' : tags
                 };
-                chrome.browserAction.setIcon({'path' : '/imgs/active.png'});
+                //chrome.browserAction.setIcon({'path' : '/imgs/active.png'});
                 socket.emit('initial', data);
             });
         });
 
         socket.on('disconnect', function(json) {
             console.log('websocket disconnect');
-            chrome.browserAction.setIcon({'path' : '/imgs/unactive.png'});
+            //chrome.browserAction.setIcon({'path' : '/imgs/unactive.png'});
         });
 
+        var ignore_show = false,            // 忽略窗口是否已显示
+                msg_array = [];                    // 消息数组
         socket.on('message', function(data) {
-            var notification = new Notification(data['title'],{
-                title : data['title'],
-                body : data['content'],
-                icon : data['icon']
-            });
+            if(Notification.permission == 'granted'){
+                if(!ignore_show){
+                    var ignore = new Notification('忽略全部消息',{
+                        title : '忽略全部消息',
+                        body : '点击忽略全部消息',
+                        icon : data['icon'],
+                        requireInteraction: true
+                    });
 
-            var link = data['extra']['url'];
-            if (link) {
-                notification.onclick = function() {
-                    window.open(link);
+                    ignore.onclick = function(){
+                        ignore.close();                        
+                    }  
+                    ignore.onclose = function(){
+                        for(var i = 0, il = msg_array.length; i < il; i++){
+                            msg_array[i].close();
+                        }
+                        ignore_show = false;
+                    }  
+                    
+                    ignore_show = true;
+                }          
+
+                var msg = new Notification(data['title'],{
+                    title : data['title'],
+                    body : data['content'],
+                    icon : data['icon']
+                });
+                var link = data['extra']['url'];
+                if (link) {
+                    msg.onclick = function() {
+                        window.open(link); 
+                    }
                 }
+                msg.onclose = function(){
+                    msg_array.pop();
+                    if(!msg_array.length){
+                        ignore.close();
+                        //ignore_show = false;
+                    }
+                }
+
+                msg_array.push(msg);
             }
 
             chrome.browserAction.getBadgeText({},function(da){
