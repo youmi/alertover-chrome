@@ -100,6 +100,20 @@
     margin-bottom:0px;
     margin-top:10px;
 }
+.media{
+    *zoom:1;
+    clear: both;
+}
+.media-left{
+    float: left;
+    width: 65px;
+    word-break: break-word;
+}
+.media-body{
+    float:left;
+    width: 85%;
+    word-break: break-word;
+}
 
 .mk-form {
     padding:20px;
