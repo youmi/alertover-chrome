@@ -115,6 +115,10 @@
     word-break: break-word;
 }
 
+.media-text{
+    white-space:pre-wrap;
+}
+
 .mk-form {
     padding:20px;
 }

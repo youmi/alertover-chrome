@@ -1,4 +1,4 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function(){function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s}return e})()({1:[function(require,module,exports){
 var $ = require('jquery');
 var io = require('socket.io-client');
 var Promise = require('promise');
@@ -120,59 +120,135 @@ var bgScript = window.bgScript = {
             //chrome.browserAction.setIcon({'path' : '/imgs/unactive.png'});
         });
 
-        var ignore_show = false,            // 忽略窗口是否已显示
-                msg_array = [];                    // 消息数组
+        var msg_array = [],             // 消息数组
+            notice_array = [];          // 通知数组
+        var timer;
         socket.on('message', function(data) {
-            if(Notification.permission == 'granted'){
-                if(!ignore_show){
-                    var ignore = new Notification('忽略全部消息',{
-                        title : '忽略全部消息',
-                        body : '点击忽略全部消息',
-                        icon : data['icon'],
-                        requireInteraction: true
+            //先把接收到的消息都存在msg_array数组
+            msg_array.push(data);
+            //假设还有消息接收
+            var flag = 'receiving';
+
+            //取消定时器，因为有新的消息
+            window.clearTimeout(timer);
+
+            //若3秒后没有新消息，就表示暂时所有消息都已经接收
+            timer = setTimeout(function () {
+                flag = 'received';
+                var msg_length = msg_array.length;
+
+                chrome.browserAction.getBadgeText({},function (da) {
+                    da = da?da:0;
+                    chrome.browserAction.setBadgeText({
+                        text : (parseInt(da) + msg_length).toString(),
                     });
+                })
 
-                    ignore.onclick = function(){
-                        ignore.close();                        
-                    }  
-                    ignore.onclose = function(){
-                        for(var i = 0, il = msg_array.length; i < il; i++){
-                            msg_array[i].close();
+                if(Notification.permission == 'granted'){
+                    if(msg_length>1){
+                        var ignore = new Notification('忽略全部消息',{
+                            title : '忽略全部消息',
+                            body : '点击忽略全部消息',
+                            icon : data['icon'],
+                            requireInteraction: true
+                        });
+
+                        ignore.onclick = function(){
+                            ignore.close();
                         }
-                        ignore_show = false;
-                    }  
-                    
-                    ignore_show = true;
-                }          
-
-                var msg = new Notification(data['title'],{
-                    title : data['title'],
-                    body : data['content'],
-                    icon : data['icon']
-                });
-                var link = data['extra']['url'];
-                if (link) {
-                    msg.onclick = function() {
-                        window.open(link); 
+                        ignore.onclose = function(){
+                            for(var i = 0; i < notice_array.length; i++){
+                                notice_array[i].close();
+                            }
+                        }
                     }
-                }
-                msg.onclose = function(){
-                    msg_array.pop();
-                    if(!msg_array.length){
-                        ignore.close();
-                        //ignore_show = false;
+
+                    for(var i=0, len=msg_array.length; i<len; i++){
+                        var msg = msg_array[i];
+                        let notice = new Notification(msg['title'],{
+                            title : msg['title'],
+                            body : msg['content'],
+                            icon : msg['icon']
+                        });
+                        var link = msg['extra']['url'];
+                        if (link) {
+                            notice.onclick = function() {
+                                window.open(link);
+                            }
+                        }
+                        // notice.onclose = function(){
+                        //     notice_array.splice(notice_array.indexOf(notice),1);
+                        //     if(!notice_array.length){
+                        //         ignore.close();
+                        //         //ignore_show = false;
+                        //     }
+                        // }
+                        (function (notice) {
+                            notice.onclose = function(){
+                                notice_array.splice(notice_array.indexOf(notice),1);
+                                if(!notice_array.length){
+                                    ignore.close();
+                                    //ignore_show = false;
+                                }
+                            }
+                        })(notice)
+                        notice_array.push(notice);
                     }
+                    msg_array = [];
+
                 }
+            },3000)
 
-                msg_array.push(msg);
-            }
+            // if(Notification.permission == 'granted'){
+            // if(!ignore_show){
+            //   var ignore = new Notification('忽略全部消息',{
+            //     title : '忽略全部消息',
+            //     body : '点击忽略全部消息',
+            //     icon : data['icon'],
+            //     requireInteraction: true
+            //   });
+            //
+            //   ignore.onclick = function(){
+            //     ignore.close();
+            //   }
+            //   ignore.onclose = function(){
+            //     for(var i = 0, il = msg_array.length; i < il; i++){
+            //       msg_array[i].close();
+            //     }
+            //     ignore_show = false;
+            //   }
+            //
+            //   ignore_show = true;
+            // }
+            //
+            // var msg = new Notification(data['title'],{
+            //   title : data['title'],
+            //   body : data['content'],
+            //   icon : data['icon']
+            // });
+            // var link = data['extra']['url'];
+            // if (link) {
+            //   msg.onclick = function() {
+            //     window.open(link);
+            //   }
+            // }
+            // msg.onclose = function(){
+            //   msg_array.pop();
+            //   if(!msg_array.length){
+            //     ignore.close();
+            //     //ignore_show = false;
+            //   }
+            // }
+            //
+            // msg_array.push(msg);
+            // }
+            // chrome.browserAction.getBadgeText({},function(da){
+                // da = da?da:0;
+                // chrome.browserAction.setBadgeText({
+                //   text : (parseInt(da)+1).toString(),
+                // });
+            // });
 
-            chrome.browserAction.getBadgeText({},function(da){
-                da = da?da:0;
-                chrome.browserAction.setBadgeText({
-                    text : (parseInt(da)+1).toString(),
-                });
-            });
         });
 
         socket.on('transparent', function(data){

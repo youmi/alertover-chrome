@@ -51,7 +51,7 @@ var base = (function(){
                 <span class="green switch"><small></small><input type="checkbox" class="notifica_input" style="display:none"><div class="switch-text"><div class="on">ON</div><div class="off">OFF</div></div></span></li>');
             //console.log(results);
             for(var i=0; i<results.length; i++){
-                template = '<li><a class="sourcesItem" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a><span data-rid="'+ results.item(i)['sid'] +'">清空</span></li>';
+                var template = '<li><a class="sourcesItem" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a><span data-rid="'+ results.item(i)['sid'] +'">清空</span></li>';
                 this.$sourcesUl.append(template);
             }
 
@@ -69,7 +69,7 @@ var base = (function(){
                     var template = '<div class="media mk-media">';
                 }
                 template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="'+results.item(i)['source_icon']+'"></span></div>';
-                template += '<div class="media-body"><h4 class="media-heading">'+(results.item(i)['title']?results.item(i)['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results.item(i)['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p>'+results.item(i)['content'];
+                template += '<div class="media-body"><h4 class="media-heading">'+(results.item(i)['title']?results.item(i)['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results.item(i)['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p><p class="media-text">'+results.item(i)['content'] + '</p>';
                 if(results.item(i)['url']){
                     template += '<p class="media-url"><a target="_black" href="'+ results.item(i)['url'] +'">详细信息</a></p></div></div>';
                 } else {
@@ -257,9 +257,10 @@ function initPopup(first){
 
     var session = localStorage.getItem('aosession');
     var lastUpdate = localStorage.getItem('lastUpdate');            // 最后更新时间
-    var now = Moment().unix();                                          
+    var now = Moment().unix();
+    var results;             //从数据库取出的结果
     if(!lastUpdate){                                                    
-        lastUpdate = Moment().subtract(2, 'days').unix();              // 当前时间减去两天。
+        lastUpdate = Moment().subtract(2, 'days').unix();              // 当前时间减去两天，打开的时候默认获取前两天的数据。
         localStorage.setItem('lastUpdate', lastUpdate); 
     }
 
@@ -348,6 +349,7 @@ function initPopup(first){
     }, function(err){
         console.log(err);
     });
+    //获取到本地数据库里的信息后，渲染到页面
     pLoadMessages.then(function(da){
         results = da[1]['rows'];
         base.$content.empty();
@@ -356,6 +358,7 @@ function initPopup(first){
             base.$sourcesUl.empty();
             base.renderSourcesUl(da[1].rows);
         });
+        //将lastUpdate设置成最新一条信息的时间戳
         localStorage.setItem('lastUpdate', da[1]['rows'][0]['rt']);
     }, function(err){
         console.log(err);
@@ -394,8 +397,7 @@ $(document).ready(function(){
         base.renderPage('#popupPage', function(){
             initPopup();
         });
-    }
-    else {
+    } else {
         // 没有登录 请先登录
         // @todo 登录完清除数据库数据
         base.renderPage('#loginPage', function(){
