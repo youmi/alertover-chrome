@@ -4,6 +4,8 @@ var html5sql = window.html5sql;
 var Promise = require('promise');
 var Moment = require('moment');         // 时间处理类库。moment.js
 
+var new_message;
+
 var config = {
     ver : 20,
     dbName : 'alertover.db',
@@ -268,7 +270,6 @@ function initPopup(first){
     /*setTimeout(function(){
 
     })*/
-    
 
     // 事件绑定
     $(document).on('scroll', scrollHandler);
@@ -384,6 +385,10 @@ function initPopup(first){
 }
 
 $(document).ready(function(){
+    chrome.browserAction.getBadgeText({},function (da) {
+        console.log(da);
+        new_message = da;
+    });
     // 清空角标
     chrome.browserAction.setBadgeText({text : ''}); 
 

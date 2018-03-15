@@ -71,31 +71,33 @@
     background-color: #FEE5E4;
 }
 .media-left {
+    padding-left:5px;
     padding-right:15px;
 }
 .mk-media .media-object-wrapper {
-    width:50px;
-    height:50px;
-    border-radius:25px;
+    height:35px;
     overflow:hidden;
     display:inline-block;
-    margin-top:5px;
 }
 .mk-media .media-object {
-    width:50px;
+    width:auto;
+    height:100%;
 }
 .media-heading {
-    line-height:26px;
+    font-size:16px;
+    color:#333;
+    font-weight:700;
+    line-height:1.4;
     margin:0;
 }
 .media-datetime {
-    font-size:14px;
-    line-height:26px;
+    font-size:12px;
+    line-height:20px;
     margin:0 0 5px 0;
-    color:#888;
+    color:#999;
 }
 .media-url {
-    font-size:14px;
+    font-size:12px;
     line-height:1;
     margin-bottom:0px;
     margin-top:10px;
@@ -106,7 +108,6 @@
 }
 .media-left{
     float: left;
-    width: 65px;
     word-break: break-word;
 }
 .media-body{
@@ -117,6 +118,10 @@
 
 .media-text{
     white-space:pre-wrap;
+    color:#666;
+    font-size:14px;
+    font-family:'MicrosoftYaHei';
+    margin-bottom:0;
 }
 
 .mk-form {

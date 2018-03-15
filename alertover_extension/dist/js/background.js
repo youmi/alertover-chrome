@@ -122,19 +122,13 @@ var bgScript = window.bgScript = {
 
         var msg_array = [],             // 消息数组
             notice_array = [];          // 通知数组
-        var timer;
+        var ignore,
+            ignore_show = false;
         socket.on('message', function(data) {
-            //先把接收到的消息都存在msg_array数组
+
             msg_array.push(data);
-            //假设还有消息接收
-            var flag = 'receiving';
 
-            //取消定时器，因为有新的消息
-            window.clearTimeout(timer);
-
-            //若3秒后没有新消息，就表示暂时所有消息都已经接收
-            timer = setTimeout(function () {
-                flag = 'received';
+            setTimeout(function () {
                 var msg_length = msg_array.length;
 
                 chrome.browserAction.getBadgeText({},function (da) {
@@ -145,110 +139,62 @@ var bgScript = window.bgScript = {
                 })
 
                 if(Notification.permission == 'granted'){
-                    if(msg_length>1){
-                        var ignore = new Notification('忽略全部消息',{
+                    if(!ignore_show){
+                        ignore = new Notification('忽略全部消息',{
                             title : '忽略全部消息',
                             body : '点击忽略全部消息',
-                            icon : data['icon'],
+                            icon : msg_array[0]['icon'],
                             requireInteraction: true
                         });
+                        ignore_show = true;
 
                         ignore.onclick = function(){
                             ignore.close();
                         }
+
                         ignore.onclose = function(){
+
                             for(var i = 0; i < notice_array.length; i++){
                                 notice_array[i].close();
                             }
+
+                            ignore_show = false;
                         }
                     }
 
-                    for(var i=0, len=msg_array.length; i<len; i++){
-                        var msg = msg_array[i];
-                        let notice = new Notification(msg['title'],{
-                            title : msg['title'],
-                            body : msg['content'],
-                            icon : msg['icon']
+                    var copy_array = msg_array.slice();
+
+                    for(var i=0, len=copy_array.length; i<len; i++){
+
+                        var data = copy_array[i];
+
+                        var notice = new Notification(data['title'],{
+                            title : data['title'],
+                            body : data['content'],
+                            icon : data['icon'],
                         });
-                        var link = msg['extra']['url'];
+
+                        notice_array.push(notice);
+
+                        var link = data['extra']['url'];
                         if (link) {
                             notice.onclick = function() {
                                 window.open(link);
                             }
                         }
-                        // notice.onclose = function(){
-                        //     notice_array.splice(notice_array.indexOf(notice),1);
-                        //     if(!notice_array.length){
-                        //         ignore.close();
-                        //         //ignore_show = false;
-                        //     }
-                        // }
-                        (function (notice) {
-                            notice.onclose = function(){
-                                notice_array.splice(notice_array.indexOf(notice),1);
-                                if(!notice_array.length){
-                                    ignore.close();
-                                    //ignore_show = false;
-                                }
+
+                        notice.onclose = function(){
+                            notice_array.splice(notice_array.indexOf(notice),1)
+                            if(!notice_array.length){
+                                ignore.close();
                             }
-                        })(notice)
-                        notice_array.push(notice);
+                        }
+
+                        msg_array.splice(msg_array.indexOf(data),1);
                     }
-                    msg_array = [];
 
                 }
-            },3000)
-
-            // if(Notification.permission == 'granted'){
-            // if(!ignore_show){
-            //   var ignore = new Notification('忽略全部消息',{
-            //     title : '忽略全部消息',
-            //     body : '点击忽略全部消息',
-            //     icon : data['icon'],
-            //     requireInteraction: true
-            //   });
-            //
-            //   ignore.onclick = function(){
-            //     ignore.close();
-            //   }
-            //   ignore.onclose = function(){
-            //     for(var i = 0, il = msg_array.length; i < il; i++){
-            //       msg_array[i].close();
-            //     }
-            //     ignore_show = false;
-            //   }
-            //
-            //   ignore_show = true;
-            // }
-            //
-            // var msg = new Notification(data['title'],{
-            //   title : data['title'],
-            //   body : data['content'],
-            //   icon : data['icon']
-            // });
-            // var link = data['extra']['url'];
-            // if (link) {
-            //   msg.onclick = function() {
-            //     window.open(link);
-            //   }
-            // }
-            // msg.onclose = function(){
-            //   msg_array.pop();
-            //   if(!msg_array.length){
-            //     ignore.close();
-            //     //ignore_show = false;
-            //   }
-            // }
-            //
-            // msg_array.push(msg);
-            // }
-            // chrome.browserAction.getBadgeText({},function(da){
-                // da = da?da:0;
-                // chrome.browserAction.setBadgeText({
-                //   text : (parseInt(da)+1).toString(),
-                // });
-            // });
-
+            },1000)
         });
 
         socket.on('transparent', function(data){

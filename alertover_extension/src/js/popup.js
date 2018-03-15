@@ -3,6 +3,8 @@ var html5sql = window.html5sql;
 var Promise = require('promise');
 var Moment = require('moment');         // 时间处理类库。moment.js
 
+var new_message_num;
+
 var config = {
     ver : 20,
     dbName : 'alertover.db',
@@ -62,7 +64,15 @@ var base = (function(){
         },
 
         renderContent : function(results){
-            for(var i=0; i<results.length; i++){
+            var new_message = [],       //新消息数组
+                old_message = [];       //已读消息数组
+
+            if(new_message_num>0 && new_message_num<results.length){
+                new_message = results.splice(0,new_message_num);
+                old_message = results;
+            }
+
+            for(var i=0; i<new_message.length; i++){
                 if(results.item(i)['priority']){
                     var template = '<div class="media mk-media important-media">';
                 } else {
@@ -77,6 +87,24 @@ var base = (function(){
                 }
                 this.$content.append(template);
             }
+
+            for(var i=0; i<old_message.length; i++){
+                var template = '';
+                if(results.item(i)['priority']){
+                    template += '<div class="media mk-media important-media">';
+                } else {
+                    template += '<div class="media mk-media">';
+                }
+                template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="'+results.item(i)['source_icon']+'"></span></div>';
+                template += '<div class="media-body"><h4 class="media-heading">'+(results.item(i)['title']?results.item(i)['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results.item(i)['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p><p class="media-text">'+results.item(i)['content'] + '</p>';
+                if(results.item(i)['url']){
+                    template += '<p class="media-url"><a target="_black" href="'+ results.item(i)['url'] +'">详细信息</a></p></div></div>';
+                } else {
+                    template += '</div></div>';
+                }
+                this.$content.append(template);
+            }
+
         },
 
         renderPage : function(pageSelector, fn){
@@ -267,7 +295,6 @@ function initPopup(first){
     /*setTimeout(function(){
 
     })*/
-    
 
     // 事件绑定
     $(document).on('scroll', scrollHandler);
@@ -383,6 +410,9 @@ function initPopup(first){
 }
 
 $(document).ready(function(){
+    chrome.browserAction.getBadgeText({},function (da) {
+        new_message_num = da?da:0;
+    });
     // 清空角标
     chrome.browserAction.setBadgeText({text : ''}); 
 
