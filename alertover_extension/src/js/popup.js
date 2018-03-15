@@ -67,8 +67,14 @@ var base = (function(){
             var new_message = [],       //新消息数组
                 old_message = [];       //已读消息数组
 
-            if(new_message_num>0 && new_message_num<results.length){
-                new_message = results.splice(0,new_message_num);
+            if(new_message_num>0){
+                //如果新消息数量超过10条（results默认长度是10）
+                if(new_message_num<results.length){
+                    new_message = results.splice(0,new_message_num);
+                    old_message = results;
+                }
+                
+            }else{
                 old_message = results;
             }
 
@@ -89,7 +95,7 @@ var base = (function(){
             }
 
             for(var i=0; i<old_message.length; i++){
-                var template = '';
+                var template = '<div class="boundary">以下为已读消息</div>';
                 if(results.item(i)['priority']){
                     template += '<div class="media mk-media important-media">';
                 } else {
