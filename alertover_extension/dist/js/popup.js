@@ -4,7 +4,7 @@ var html5sql = window.html5sql;
 var Promise = require('promise');
 var Moment = require('moment');         // 时间处理类库。moment.js
 
-var new_message;
+var new_message_num;
 
 var config = {
     ver : 20,
@@ -47,7 +47,6 @@ var base = (function(){
         windowHeight : $(window).height(),
         $content : $('#content'),
         $sourcesUl : $('#sourcesUl'),
-
         renderSourcesUl : function(results){
             this.$sourcesUl.append('<li class="active"><a id="allMessgaes" class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
             this.$sourcesUl.append('<li id="support-notification"><a class="sourcesItem" href="#">开启桌面通知</a>\
@@ -63,23 +62,76 @@ var base = (function(){
                 $('.switch').addClass('checked');
             }
         },
+        /**
+         *
+         * @param results   消息数组
+         * @param isFirst   是否为第一次渲染（标记参数，因为第一次是从本地数据库取出来的数据，默认都是已读。之后取出来的消息可能包含新消息）
+         */
+        renderContent : function(results, isFirst){
+            //results为类数组对象，先转化为数组
+            results = Array.prototype.slice.call(results);
+            //如果不是第一次渲染
+            if(!isFirst) {
+                var new_message = [];       //新消息数组
 
-        renderContent : function(results){
+                if (new_message_num > 0) {
+                    //如果新消息数量不超过10条（results默认长度是10）
+                    if (new_message_num < results.length) {
+                        console.log('分离新消息');
+                        new_message = results.splice(0, new_message_num);
+                        //因为不超过10条，新消息已经从当前results里面分离出来
+                        new_message_num = 0;
+                    } else {
+                        console.log('新消息大于10条');
+                        new_message = results;
+                        results = [];
+                        new_message_num -= 10;
+                    }
+                }
+                //渲染新消息
+                for (var i = 0; i < new_message.length; i++) {
+                    if (new_message[i]['priority']) {
+                        var template = '<div class="media mk-media important-media">';
+                    } else {
+                        var template = '<div class="media mk-media">';
+                    }
+                    template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="' + new_message[i]['source_icon'] + '"></span></div>';
+                    template += '<div class="media-body"><h4 class="media-heading">' + (new_message[i]['title'] ? new_message[i]['title'] : 'Alertover') + '</h4><p class="media-datetime">' + Moment.unix(new_message[i]['rt']).format('YYYY-MM-DD HH:mm:ss') + '</p><p class="media-text">' + new_message[i]['content'] + '</p>';
+                    if (new_message[i]['url']) {
+                        template += '<p class="media-url"><a target="_black" href="' + new_message[i]['url'] + '">详细信息</a></p></div></div>';
+                    } else {
+                        template += '</div></div>';
+                    }
+                    this.$content.append(template);
+                }
+            }
+
+            //渲染已读分界线
+            if (new_message_num == 0 && $('.boundary').length==0) {
+                this.renderBoundary();
+            }
+
+            //渲染已读消息
             for(var i=0; i<results.length; i++){
-                if(results.item(i)['priority']){
+                if(results[i]['priority']){
                     var template = '<div class="media mk-media important-media">';
                 } else {
                     var template = '<div class="media mk-media">';
                 }
-                template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="'+results.item(i)['source_icon']+'"></span></div>';
-                template += '<div class="media-body"><h4 class="media-heading">'+(results.item(i)['title']?results.item(i)['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results.item(i)['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p><p class="media-text">'+results.item(i)['content'] + '</p>';
-                if(results.item(i)['url']){
-                    template += '<p class="media-url"><a target="_black" href="'+ results.item(i)['url'] +'">详细信息</a></p></div></div>';
+                template += '<div class="media-left"><span class="media-object-wrapper"><img class="media-object" src="'+results[i]['source_icon']+'"></span></div>';
+                template += '<div class="media-body"><h4 class="media-heading">'+(results[i]['title']?results[i]['title']:'Alertover')+'</h4><p class="media-datetime">'+ Moment.unix(results[i]['rt']).format('YYYY-MM-DD HH:mm:ss') +'</p><p class="media-text">'+results[i]['content'] + '</p>';
+                if(results[i]['url']){
+                    template += '<p class="media-url"><a target="_black" href="'+ results[i]['url'] +'">详细信息</a></p></div></div>';
                 } else {
                     template += '</div></div>';
                 }
                 this.$content.append(template);
             }
+        },
+
+        renderBoundary:function () {
+            var boundary_template = '<div class="boundary"><span class="boundary-text">以下为已读消息</span></div>';
+            this.$content.append(boundary_template);
         },
 
         renderPage : function(pageSelector, fn){
@@ -93,6 +145,7 @@ var base = (function(){
 })();
 
 function scrollHandler(e){
+    console.log(e);
     if(!base.flat){
         base.flat = true;
         var scrollEvent = setTimeout(function(){
@@ -108,7 +161,7 @@ function scrollHandler(e){
                 }
                 db.query(sql).then(function(da){
                     if(da[1].rows.length){
-                        base.renderContent(da[1].rows);
+                        base.renderContent(da[1].rows, false);
                         base.page += 1;
                     }
                     if(da[1].rows.length == config['pageNum']){
@@ -143,7 +196,7 @@ function changeSourceHandler(e){
     db.query(sql).then(function(da){
         $content.empty();
         if(da[1].rows.length){
-            base.renderContent(da[1].rows);
+            base.renderContent(da[1].rows, true);
         }
         if(da[1].rows.length == config['pageNum']){
             base.flat = false;
@@ -294,7 +347,7 @@ function initPopup(first){
     pCreateTables.then(function(da){
         return db.query("SELECT * FROM messages JOIN sources ON messages.sid=sources.sid ORDER BY rt DESC LIMIT "+config['pageNum']);
     }).then(function(da){
-        base.renderContent(da[1].rows);
+        base.renderContent(da[1].rows, true);
     });
     //获取本地数据库里的信息 渲染sourcelist 
     pCreateTables.then(function(da){
@@ -355,7 +408,7 @@ function initPopup(first){
     pLoadMessages.then(function(da){
         results = da[1]['rows'];
         base.$content.empty();
-        base.renderContent(results);
+        base.renderContent(results, false);
         db.query("SELECT * FROM sources").then(function(da){
             base.$sourcesUl.empty();
             base.renderSourcesUl(da[1].rows);
@@ -386,8 +439,7 @@ function initPopup(first){
 
 $(document).ready(function(){
     chrome.browserAction.getBadgeText({},function (da) {
-        console.log(da);
-        new_message = da;
+        new_message_num = da?da:0;
     });
     // 清空角标
     chrome.browserAction.setBadgeText({text : ''}); 

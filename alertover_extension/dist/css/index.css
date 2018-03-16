@@ -269,6 +269,8 @@ background-color: #ccc;
     width:100%;
     height:30px;
     text-align:center;
+    margin-top:-1px;
+    background-color:#fff;
     position:relative;
 }
 
@@ -283,17 +285,17 @@ background-color: #ccc;
 .boundary::before{
     content:'';
     position:absolute;
-    width:50%;
+    width:40%;
     top:15px;
     left:0;
-    border-top:1px solid #666;
+    border-top:1px solid #ddd;
 }
 
-.boundary::before{
+.boundary::after{
     content:'';
     position:absolute;
-    width:50%;
+    width:40%;
     top:15px;
     right:0;
-    border-top:1px solid #666;
+    border-top:1px solid #ddd;
 }
