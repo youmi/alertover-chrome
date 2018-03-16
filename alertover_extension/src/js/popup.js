@@ -76,12 +76,12 @@ var base = (function(){
                 if (new_message_num > 0) {
                     //如果新消息数量不超过10条（results默认长度是10）
                     if (new_message_num < results.length) {
-                        console.log('分离新消息');
+                        // console.log('分离新消息');
                         new_message = results.splice(0, new_message_num);
                         //因为不超过10条，新消息已经从当前results里面分离出来
                         new_message_num = 0;
                     } else {
-                        console.log('新消息大于10条');
+                        // console.log('新消息大于10条');
                         new_message = results;
                         results = [];
                         new_message_num -= 10;
