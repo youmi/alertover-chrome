@@ -15,6 +15,12 @@
     display: block;
 }
 
+.container > .navbar-collapse, 
+.container > .navbar-header {
+    margin-right: -15px;
+    margin-left: -15px;
+}
+
 .navbar-header {
     text-align:center;
     background-color:#5f6473; 
@@ -51,6 +57,12 @@
 }
 .navbar-header .mk-navbar-toggle .icon-bar {
     background-color: white;
+}
+button.navbar-toggler {
+    outline: none;
+}
+.navbar-nav .nav-link {
+    padding: .5rem 1rem;
 }
 .mk-logout {
     float:right;
@@ -185,11 +197,18 @@ background-color: #ccc;
     border-bottom: 1px solid #dcdcdc;
 }
 .source-ul li .nav-link {
-    color: rgba(0, 0, 0, .5) !important;
+    color: #777 !important;
 }
-.source-ul li.active .nav-link {
-    color: rgba(0, 0, 0, .9) !important;
+.source-ul li.active .nav-link,
+.source-ul li:hover .nav-link {
+    color: #555 !important;   
 }
+
+.source-ul li.active,
+.source-ul li:hover{
+    background-color: #e7e7e7;
+}
+
 .source-ul li span {
     position: absolute;
     right: 10px;
