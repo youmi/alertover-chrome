@@ -10,15 +10,15 @@
   "author": "alertover@youmi.net",
   "license": "MIT",
   "dependencies": {
-    "jquery": "~2.1.4",
-    "bootstrap": "~3.3.6",
-    "socket.io": "~1.4.0",
+    "bootstrap": "^4.3.1",
+    "jquery": "^3.3.1",
+    "moment": "^2.24.0",
     "promise": "~7.1.1",
-    "moment": "~2.11.1"
+    "socket.io": "^2.2.0"
   },
   "devDependencies": {
     "browserify": "~13.0.0",
-    "watchify": "~3.7.0"
+    "watchify": "^3.11.1"
   },
   "directories": {
     "doc": "docs"

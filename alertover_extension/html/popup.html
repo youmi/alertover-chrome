@@ -3,14 +3,14 @@
     <title>Alertover</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="/dist/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/dist/lib/bootstrap.min.css" rel="stylesheet">
     <link href="/dist/css/index.css" rel="stylesheet">
 </head>
 <body>
     <div id="door" class="app-wrapper">
         <p id="defaultMessage" class="default-message">正在加载中</p>
     </div>
-    <div id="loginPage" class="app-wrapper hide">
+    <div id="loginPage" class="app-wrapper d-none">
         <header class="navbar navbar-default">
             <div class="container">
                 <div class="navbar-header">
@@ -35,15 +35,13 @@
             </div>
         </form>
     </div>
-    <div id="popupPage" class="app-wrapper hide">
-        <header class="navbar navbar-default">
+    <div id="popupPage" class="app-wrapper d-none">
+        <header class="navbar navbar-default navbar-dark bg-light">
             <div class="container">
                 <div class="navbar-header">
                     <span class="navbar-brand mk-navbar-brand">Alertover</span>
-                    <button class="navbar-toggle collapsed mk-navbar-toggle" data-toggle="collapse" data-target="#sourcesList">
-                        <span class="icon-bar"></span>
-                        <span class="icon-bar"></span>
-                        <span class="icon-bar"></span>
+                    <button class="navbar-toggler collapsed mk-navbar-toggle" data-toggle="collapse" data-target="#sourcesList">
+                        <span class="navbar-toggler-icon"></span>
                     </button>
                     <a href="#" id="logoutBtn" class="mk-logout">
                         退出
@@ -59,8 +57,8 @@
         <div id="content" class="content">
         </div>
     </div>
-    <script src="/dist/lib/jquery/dist/jquery.min.js"></script>
-    <script src="/dist/lib/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="/dist/lib/jquery.min.js"></script>
+    <script src="/dist/lib/bootstrap.min.js"></script>
     <script src="/dist/lib/html5sql.js"></script>
     <script src="/dist/js/popup.js"></script>
 </body>

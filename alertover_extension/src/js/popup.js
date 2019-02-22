@@ -47,12 +47,12 @@ var base = (function(){
         $content : $('#content'),
         $sourcesUl : $('#sourcesUl'),
         renderSourcesUl : function(results){
-            this.$sourcesUl.append('<li class="active"><a id="allMessgaes" class="sourcesItem" data-sid="all" href="#">所有信息</a></li>');
-            this.$sourcesUl.append('<li id="support-notification"><a class="sourcesItem" href="#">开启桌面通知</a>\
+            this.$sourcesUl.append('<li class="nav-item active"><a id="allMessgaes" class="nav-link" data-sid="all" href="#">所有信息</a></li>');
+            this.$sourcesUl.append('<li class="nav-item" id="support-notification"><a class="nav-link" href="#">开启桌面通知</a>\
                 <span class="green switch"><small></small><input type="checkbox" class="notifica_input" style="display:none"><div class="switch-text"><div class="on">ON</div><div class="off">OFF</div></div></span></li>');
             //console.log(results);
             for(var i=0; i<results.length; i++){
-                var template = '<li><a class="sourcesItem" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a><span data-rid="'+ results.item(i)['sid'] +'">清空</span></li>';
+                var template = '<li class="nav-item"><a class="nav-link" data-sid="'+ results.item(i)['sid'] +'" href="#"><img src="'+ results.item(i)['source_icon'] +'"/>'+ results.item(i)['name'] +'</a><span data-rid="'+ results.item(i)['sid'] +'">清空</span></li>';
                 this.$sourcesUl.append(template);
             }
 
@@ -134,8 +134,8 @@ var base = (function(){
         },
 
         renderPage : function(pageSelector, fn){
-            $('.app-wrapper').addClass('hide');
-            $(pageSelector).removeClass('hide');
+            $('.app-wrapper').addClass('d-none');
+            $(pageSelector).removeClass('d-none');
             if(fn){
                 fn();
             }
